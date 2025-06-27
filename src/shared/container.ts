@@ -5,16 +5,9 @@ import { CameraZoomManager } from '@/core/engine/CameraZoomManager';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
 import { GestureHandler } from '@/presentation/ui/GestureHandler';
 import { MultiplicationService } from '@/core/math/MultiplicationService';
-import { 
-  IngredientService, 
-  LocalStorageIngredientRepository,
-  type IngredientRepository 
-} from '@/domain/inventory';
-import { 
-  RecipeService, 
-  LocalStorageRecipeRepository,
-  type RecipeRepository 
-} from '@/domain/baking';
+import { IngredientService } from '@/domain/inventory';
+import { RecipeService } from '@/domain/baking';
+import { RecipeScalingScene } from '@/presentation/scenes/RecipeScalingScene';
 
 const container = new Container();
 
@@ -24,13 +17,12 @@ container.bind<CameraZoomManager>(CameraZoomManager).toSelf().inSingletonScope()
 container.bind<MultiplicationService>(MultiplicationService).toSelf().inSingletonScope();
 
 // Domain services
-container.bind<IngredientRepository>(LocalStorageIngredientRepository).toSelf().inSingletonScope();
 container.bind<IngredientService>(IngredientService).toSelf().inSingletonScope();
-container.bind<RecipeRepository>(LocalStorageRecipeRepository).toSelf().inSingletonScope();
 container.bind<RecipeService>(RecipeService).toSelf().inSingletonScope();
 
 // Presentation components
 container.bind<CubeGrid>(CubeGrid).toSelf().inTransientScope();
 container.bind<GestureHandler>(GestureHandler).toSelf().inSingletonScope();
+container.bind<RecipeScalingScene>(RecipeScalingScene).toSelf().inSingletonScope();
 
 export { container };

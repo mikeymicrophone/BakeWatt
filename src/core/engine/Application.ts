@@ -6,6 +6,7 @@ import { GestureHandler } from '@/presentation/ui/GestureHandler';
 import { MultiplicationService } from '@/core/math/MultiplicationService';
 import { IngredientService } from '@/domain/inventory';
 import { RecipeService } from '@/domain/baking';
+import { RecipeScalingScene } from '@/presentation/scenes/RecipeScalingScene';
 import { container } from '@/shared/container';
 import { testIngredientSystem } from '@/domain/inventory/demo';
 import { testRecipeSystem } from '@/domain/baking/demo';
@@ -19,6 +20,7 @@ export class Application {
   private multiplicationService: MultiplicationService;
   private ingredientService: IngredientService;
   private recipeService: RecipeService;
+  private recipeScalingScene: RecipeScalingScene;
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
@@ -32,6 +34,7 @@ export class Application {
     this.multiplicationService = container.get<MultiplicationService>(MultiplicationService);
     this.ingredientService = container.get<IngredientService>(IngredientService);
     this.recipeService = container.get<RecipeService>(RecipeService);
+    this.recipeScalingScene = container.get<RecipeScalingScene>(RecipeScalingScene);
   }
 
   @action
@@ -62,18 +65,28 @@ export class Application {
   }
 
   private setupUI(): void {
+    // Basic math UI elements
     const visualizeBtn = document.getElementById('visualize-btn') as HTMLButtonElement;
     const calculateBtn = document.getElementById('calculate-btn') as HTMLButtonElement;
     const factor1Input = document.getElementById('factor1') as HTMLInputElement;
     const factor2Input = document.getElementById('factor2') as HTMLInputElement;
     const resultDiv = document.getElementById('result') as HTMLDivElement;
+    const recipeModeBtn = document.getElementById('recipe-mode-btn') as HTMLButtonElement;
+    
+    // Recipe scaling UI elements
+    const visualizeScalingBtn = document.getElementById('visualize-scaling-btn') as HTMLButtonElement;
+    const showScaledRecipeBtn = document.getElementById('show-scaled-recipe-btn') as HTMLButtonElement;
+    const backToBasicBtn = document.getElementById('back-to-basic-btn') as HTMLButtonElement;
+    
+    // Common UI elements
     this.zoomSlider = document.getElementById('zoom-slider') as HTMLInputElement;
     this.zoomValue = document.getElementById('zoom-value') as HTMLSpanElement;
 
-    if (!visualizeBtn || !calculateBtn || !factor1Input || !factor2Input || !resultDiv || !this.zoomSlider || !this.zoomValue) {
+    if (!visualizeBtn || !calculateBtn || !this.zoomSlider || !this.zoomValue) {
       throw new Error('Required UI elements not found');
     }
 
+    // Basic math mode handlers
     visualizeBtn.addEventListener('click', () => {
       this.handleVisualize(factor1Input, factor2Input, resultDiv);
     });
@@ -81,6 +94,32 @@ export class Application {
     calculateBtn.addEventListener('click', () => {
       this.handleCalculate(resultDiv);
     });
+
+    // Mode switching handlers
+    if (recipeModeBtn) {
+      recipeModeBtn.addEventListener('click', () => {
+        this.switchToRecipeMode();
+      });
+    }
+
+    if (backToBasicBtn) {
+      backToBasicBtn.addEventListener('click', () => {
+        this.switchToBasicMode();
+      });
+    }
+
+    // Recipe scaling handlers
+    if (visualizeScalingBtn) {
+      visualizeScalingBtn.addEventListener('click', () => {
+        this.recipeScalingScene.visualizeScaling();
+      });
+    }
+
+    if (showScaledRecipeBtn) {
+      showScaledRecipeBtn.addEventListener('click', () => {
+        this.recipeScalingScene.showScaledRecipe();
+      });
+    }
 
     // Handle zoom slider
     this.zoomSlider.addEventListener('input', (e) => {
@@ -98,8 +137,30 @@ export class Application {
       }
     };
     
-    factor1Input.addEventListener('keydown', handleEnter);
-    factor2Input.addEventListener('keydown', handleEnter);
+    if (factor1Input) factor1Input.addEventListener('keydown', handleEnter);
+    if (factor2Input) factor2Input.addEventListener('keydown', handleEnter);
+  }
+
+  @action
+  private switchToRecipeMode(): void {
+    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
+    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
+    
+    if (basicPanel) basicPanel.style.display = 'none';
+    if (recipePanel) recipePanel.style.display = 'block';
+    
+    this.recipeScalingScene.show();
+  }
+
+  @action
+  private switchToBasicMode(): void {
+    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
+    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
+    
+    if (basicPanel) basicPanel.style.display = 'block';
+    if (recipePanel) recipePanel.style.display = 'none';
+    
+    this.recipeScalingScene.hide();
   }
 
   private setupZoomSync(): void {

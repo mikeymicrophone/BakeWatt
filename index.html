@@ -105,6 +105,11 @@
       transform: translateY(-1px);
     }
     
+    .mode-switch {
+      margin-top: 15px;
+      text-align: center;
+    }
+    
     .zoom-control {
       margin-top: 20px;
       display: flex;
@@ -171,6 +176,130 @@
       color: #28a745;
     }
     
+    .recipe-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-width: 320px;
+      max-width: 400px;
+    }
+    
+    .recipe-panel h3 {
+      margin: 0 0 15px 0;
+      color: #fff;
+      font-size: 18px;
+    }
+    
+    .recipe-info {
+      margin-bottom: 20px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+    }
+    
+    .recipe-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    
+    .recipe-header #recipe-name {
+      font-weight: 600;
+      color: #fff;
+    }
+    
+    .recipe-header #recipe-icon {
+      font-size: 20px;
+    }
+    
+    .recipe-servings {
+      font-size: 14px;
+      color: #ccc;
+    }
+    
+    .scaling-controls {
+      margin-bottom: 20px;
+    }
+    
+    .scaling-math {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: rgba(0, 122, 204, 0.2);
+      border-radius: 6px;
+      border: 1px solid #007acc;
+      text-align: center;
+      font-weight: 600;
+      color: #007acc;
+    }
+    
+    .ingredient-scaling {
+      margin-bottom: 20px;
+    }
+    
+    .ingredient-scaling h4 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #ccc;
+    }
+    
+    .ingredient-problem {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      font-size: 13px;
+      color: #ddd;
+    }
+    
+    .ingredient-problem .math-equation {
+      color: #007acc;
+      font-weight: 600;
+    }
+    
+    .btn-secondary {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #666;
+      color: white;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-secondary:hover {
+      background: #555;
+      transform: translateY(-1px);
+    }
+    
+    .scaled-result-display {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 111, 97, 0.2);
+      border-radius: 8px;
+      border: 1px solid #ff6f61;
+      font-size: 14px;
+      color: #ff6f61;
+    }
+    
+    .scaled-result-display h5 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #ff6f61;
+    }
+    
+    .scaled-ingredient {
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    
     #three-container {
       width: 100%;
       height: 100%;
@@ -194,12 +323,53 @@
           <button class="btn-visualize" id="visualize-btn">Show Cubes</button>
           <button class="btn-calculate" id="calculate-btn">Show Result</button>
         </div>
+        <div class="mode-switch">
+          <button class="btn-secondary" id="recipe-mode-btn">Try Recipe Mode 🍪</button>
+        </div>
         <div class="zoom-control">
           <label for="zoom-slider">Zoom:</label>
           <input type="range" id="zoom-slider" min="0.3" max="8" step="0.1" value="1" class="zoom-slider">
           <span id="zoom-value">1.0x</span>
         </div>
         <div id="result" class="result-display" style="display: none;"></div>
+      </div>
+      
+      <!-- Recipe Scaling Panel -->
+      <div class="recipe-panel" style="display: none;">
+        <h3>🍪 Recipe Scaling</h3>
+        <div class="recipe-info">
+          <div class="recipe-header">
+            <span id="recipe-name">Simple Cookies</span>
+            <span id="recipe-icon">🍪</span>
+          </div>
+          <div class="recipe-servings">
+            <span>Base servings: </span>
+            <span id="base-servings">2</span>
+          </div>
+        </div>
+        
+        <div class="scaling-controls">
+          <div class="input-group">
+            <label for="target-servings">Target servings:</label>
+            <input type="number" id="target-servings" min="1" max="20" value="6">
+          </div>
+          <div class="scaling-math">
+            <span id="scaling-equation">2 servings × 3 = 6 servings</span>
+          </div>
+        </div>
+        
+        <div class="ingredient-scaling">
+          <h4>Ingredient Scaling:</h4>
+          <div id="ingredient-problems"></div>
+        </div>
+        
+        <div class="button-group">
+          <button class="btn-visualize" id="visualize-scaling-btn">Show Scaling</button>
+          <button class="btn-calculate" id="show-scaled-recipe-btn">Show Scaled Recipe</button>
+          <button class="btn-secondary" id="back-to-basic-btn">Back to Basic Math</button>
+        </div>
+        
+        <div id="scaled-recipe-result" class="scaled-result-display" style="display: none;"></div>
       </div>
     </div>
   </div>
