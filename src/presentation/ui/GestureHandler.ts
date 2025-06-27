@@ -117,9 +117,10 @@ export class GestureHandler {
       const scale = currentDistance / this.initialDistance;
       const deltaScale = scale - this.lastScale;
       
-      // Apply some smoothing to prevent jittery movements
-      if (Math.abs(deltaScale) > 0.02) {
-        this.zoomManager.handlePinch(scale);
+      // Apply smoothing and convert to zoom delta
+      if (Math.abs(deltaScale) > 0.01) {
+        const zoomDelta = deltaScale * 2.0; // Increase sensitivity
+        this.zoomManager.adjustZoom(zoomDelta);
         this.lastScale = scale;
       }
     }

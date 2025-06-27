@@ -1,4 +1,4 @@
-import { observable, action, autorun } from 'mobx';
+import { observable, action } from 'mobx';
 import { SceneManager } from './SceneManager';
 import { CameraZoomManager } from './CameraZoomManager';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
@@ -16,7 +16,8 @@ export class Application {
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
-  private autorunDisposer: (() => void) | null = null;
+  private isUpdatingSlider: boolean = false;
+  private zoomCallback: ((level: number) => void) | null = null;
 
   constructor() {
     this.sceneManager = container.get<SceneManager>(SceneManager);
@@ -65,6 +66,8 @@ export class Application {
 
     // Handle zoom slider
     this.zoomSlider.addEventListener('input', (e) => {
+      if (this.isUpdatingSlider) return;
+      
       const target = e.target as HTMLInputElement;
       const zoomLevel = parseFloat(target.value);
       this.zoomManager.setZoomLevel(zoomLevel, true);
@@ -82,14 +85,19 @@ export class Application {
   }
 
   private setupZoomSync(): void {
-    // Sync slider and display with zoom manager changes
-    this.autorunDisposer = autorun(() => {
-      const zoomLevel = this.zoomManager.zoomLevel;
-      
+    // Create callback for zoom changes
+    this.zoomCallback = (zoomLevel: number) => {
+      // Update slider without triggering its input event
       if (this.zoomSlider) {
+        this.isUpdatingSlider = true;
         this.zoomSlider.value = zoomLevel.toString();
+        // Use setTimeout to reset the flag after the event loop
+        setTimeout(() => {
+          this.isUpdatingSlider = false;
+        }, 0);
       }
       
+      // Update zoom display
       if (this.zoomValue) {
         this.zoomValue.textContent = `${zoomLevel.toFixed(1)}x`;
       }
@@ -98,7 +106,13 @@ export class Application {
       if (this.cubeGrid) {
         this.cubeGrid.updateNumberVisibility();
       }
-    });
+    };
+    
+    // Register the callback
+    this.zoomManager.onZoomChange(this.zoomCallback);
+    
+    // Initial sync
+    this.zoomCallback(this.zoomManager.zoomLevel);
   }
 
   @action
@@ -154,8 +168,8 @@ export class Application {
       this.cubeGrid.destroy();
     }
     
-    if (this.autorunDisposer) {
-      this.autorunDisposer();
+    if (this.zoomCallback) {
+      this.zoomManager.removeZoomChangeCallback(this.zoomCallback);
     }
     
     this.gestureHandler.unmount();

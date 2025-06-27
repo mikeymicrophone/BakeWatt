@@ -15,9 +15,11 @@ export class CameraZoomManager {
   @observable private _zoomLevel: number;
   @observable private _isZooming: boolean = false;
   
+  private zoomChangeCallbacks: ((level: number) => void)[] = [];
+  
   private config: ZoomConfig = {
-    minZoom: 0.5,
-    maxZoom: 3.0,
+    minZoom: 0.3,
+    maxZoom: 8.0,
     defaultZoom: 1.0,
     numberThreshold: 1.5
   };
@@ -69,10 +71,24 @@ export class CameraZoomManager {
     
     this._zoomLevel = clampedLevel;
     
+    // Notify all listeners
+    this.zoomChangeCallbacks.forEach(callback => callback(this._zoomLevel));
+    
     if (animate) {
       this.animateToZoom();
     } else {
       this.updateCameraPosition();
+    }
+  }
+
+  public onZoomChange(callback: (level: number) => void): void {
+    this.zoomChangeCallbacks.push(callback);
+  }
+
+  public removeZoomChangeCallback(callback: (level: number) => void): void {
+    const index = this.zoomChangeCallbacks.indexOf(callback);
+    if (index > -1) {
+      this.zoomChangeCallbacks.splice(index, 1);
     }
   }
 
@@ -143,16 +159,10 @@ export class CameraZoomManager {
 
   public handleWheel(event: WheelEvent): void {
     event.preventDefault();
-    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    const delta = event.deltaY > 0 ? -0.15 : 0.15;
     this.adjustZoom(delta);
   }
 
-  public handlePinch(scale: number): void {
-    // Convert pinch scale to zoom level
-    const sensitivity = 0.5;
-    const delta = (scale - 1) * sensitivity;
-    this.adjustZoom(delta);
-  }
 
   public getConfig(): ZoomConfig {
     return { ...this.config };

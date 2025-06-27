@@ -7,7 +7,8 @@ import { CameraZoomManager } from '@/core/engine/CameraZoomManager';
 interface CubeInfo {
   mesh: THREE.Mesh;
   number: number;
-  textSprite?: THREE.Sprite;
+  baseMaterial: THREE.MeshLambertMaterial;
+  numberedMaterial?: THREE.MeshLambertMaterial;
 }
 
 @injectable()
@@ -70,11 +71,13 @@ export class CubeGrid {
         cube.castShadow = true;
         cube.receiveShadow = true;
         
+        // Store the base material
+        const baseMaterial = cubeMaterial;
+        
         // Add visual variety for non-product cubes
         if (!isProductCube) {
-          const material = cube.material as THREE.MeshLambertMaterial;
           const hue = (row * columns + col) / totalCubes;
-          material.color.setHSL(0.6 + hue * 0.3, 0.7, 0.6);
+          baseMaterial.color.setHSL(0.6 + hue * 0.3, 0.7, 0.6);
         }
         
         // Start with scale 0 for animation
@@ -82,7 +85,8 @@ export class CubeGrid {
         
         const cubeInfo: CubeInfo = {
           mesh: cube,
-          number: cubeNumber
+          number: cubeNumber,
+          baseMaterial: baseMaterial
         };
         
         this.cubes.push(cubeInfo);
@@ -135,64 +139,68 @@ export class CubeGrid {
     const shouldShow = this.zoomManager.shouldShowNumbers;
     
     this.cubes.forEach(cubeInfo => {
-      if (shouldShow && !cubeInfo.textSprite) {
-        cubeInfo.textSprite = this.createTextSprite(cubeInfo.number.toString());
-        cubeInfo.textSprite.position.copy(cubeInfo.mesh.position);
-        cubeInfo.textSprite.position.y += 0.6;
-        this.group.add(cubeInfo.textSprite);
-      } else if (!shouldShow && cubeInfo.textSprite) {
-        this.group.remove(cubeInfo.textSprite);
-        this.disposeTextSprite(cubeInfo.textSprite);
-        cubeInfo.textSprite = undefined;
+      if (shouldShow && !cubeInfo.numberedMaterial) {
+        // Create numbered material
+        cubeInfo.numberedMaterial = this.createNumberedMaterial(
+          cubeInfo.number.toString(),
+          cubeInfo.baseMaterial.color.clone()
+        );
+        cubeInfo.mesh.material = cubeInfo.numberedMaterial;
+      } else if (!shouldShow && cubeInfo.numberedMaterial) {
+        // Switch back to base material
+        cubeInfo.mesh.material = cubeInfo.baseMaterial;
+        this.disposeNumberedMaterial(cubeInfo.numberedMaterial);
+        cubeInfo.numberedMaterial = undefined;
       }
     });
   }
 
-  private createTextSprite(text: string): THREE.Sprite {
+  private createNumberedMaterial(text: string, baseColor: THREE.Color): THREE.MeshLambertMaterial {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
     
-    // Set canvas size
-    canvas.width = 128;
-    canvas.height = 128;
+    // Set canvas size for cube face
+    canvas.width = 256;
+    canvas.height = 256;
+    
+    // Fill with base color
+    context.fillStyle = `rgb(${Math.floor(baseColor.r * 255)}, ${Math.floor(baseColor.g * 255)}, ${Math.floor(baseColor.b * 255)})`;
+    context.fillRect(0, 0, 256, 256);
     
     // Configure text style
-    context.fillStyle = 'white';
-    context.font = 'bold 48px Arial';
+    context.font = 'bold 120px Arial';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     
-    // Add background circle
-    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    context.beginPath();
-    context.arc(64, 64, 50, 0, Math.PI * 2);
-    context.fill();
+    // Add text shadow for better visibility
+    context.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    context.shadowBlur = 8;
+    context.shadowOffsetX = 3;
+    context.shadowOffsetY = 3;
     
-    // Draw text
+    // Draw white text
     context.fillStyle = 'white';
-    context.fillText(text, 64, 64);
+    context.fillText(text, 128, 128);
     
-    // Create texture and sprite
+    // Create texture
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     
-    const spriteMaterial = new THREE.SpriteMaterial({ 
+    // Create material with the texture
+    const material = new THREE.MeshLambertMaterial({
       map: texture,
-      transparent: true,
-      opacity: 0.9
+      transparent: false,
+      opacity: 1.0
     });
     
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(0.6, 0.6, 1);
-    
-    return sprite;
+    return material;
   }
 
-  private disposeTextSprite(sprite: THREE.Sprite): void {
-    if (sprite.material.map) {
-      sprite.material.map.dispose();
+  private disposeNumberedMaterial(material: THREE.MeshLambertMaterial): void {
+    if (material.map) {
+      material.map.dispose();
     }
-    sprite.material.dispose();
+    material.dispose();
   }
 
   @action
@@ -200,11 +208,13 @@ export class CubeGrid {
     this.cubes.forEach(cubeInfo => {
       this.group.remove(cubeInfo.mesh);
       cubeInfo.mesh.geometry.dispose();
-      (cubeInfo.mesh.material as THREE.Material).dispose();
       
-      if (cubeInfo.textSprite) {
-        this.group.remove(cubeInfo.textSprite);
-        this.disposeTextSprite(cubeInfo.textSprite);
+      // Dispose base material
+      cubeInfo.baseMaterial.dispose();
+      
+      // Dispose numbered material if it exists
+      if (cubeInfo.numberedMaterial) {
+        this.disposeNumberedMaterial(cubeInfo.numberedMaterial);
       }
     });
     this.cubes = [];
