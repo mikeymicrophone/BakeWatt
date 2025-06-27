@@ -4,7 +4,11 @@ import { CameraZoomManager } from './CameraZoomManager';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
 import { GestureHandler } from '@/presentation/ui/GestureHandler';
 import { MultiplicationService } from '@/core/math/MultiplicationService';
+import { IngredientService } from '@/domain/inventory';
+import { RecipeService } from '@/domain/baking';
 import { container } from '@/shared/container';
+import { testIngredientSystem } from '@/domain/inventory/demo';
+import { testRecipeSystem } from '@/domain/baking/demo';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -13,6 +17,8 @@ export class Application {
   private zoomManager: CameraZoomManager;
   private gestureHandler: GestureHandler;
   private multiplicationService: MultiplicationService;
+  private ingredientService: IngredientService;
+  private recipeService: RecipeService;
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
@@ -24,6 +30,8 @@ export class Application {
     this.zoomManager = container.get<CameraZoomManager>(CameraZoomManager);
     this.gestureHandler = container.get<GestureHandler>(GestureHandler);
     this.multiplicationService = container.get<MultiplicationService>(MultiplicationService);
+    this.ingredientService = container.get<IngredientService>(IngredientService);
+    this.recipeService = container.get<RecipeService>(RecipeService);
   }
 
   @action
@@ -39,6 +47,16 @@ export class Application {
     this.gestureHandler.mount(container);
     this.setupUI();
     this.setupZoomSync();
+    
+    // Test ingredient system
+    console.log('🧪 Testing Ingredient System Integration...');
+    console.log('📦 Pantry initialized with:', this.ingredientService.getAllIngredientAmounts().length, 'ingredient types');
+    testIngredientSystem();
+    
+    // Test recipe system
+    console.log('\n🍪 Testing Recipe System Integration...');
+    console.log('📚 Recipe collection initialized with:', this.recipeService.getAllRecipes().length, 'recipes');
+    testRecipeSystem();
     
     this._isInitialized = true;
   }
