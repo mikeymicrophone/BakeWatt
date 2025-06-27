@@ -300,6 +300,169 @@
       font-size: 13px;
     }
     
+    /* Transfer Panel Styles */
+    .transfer-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 300px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 8px;
+      padding: 20px;
+      color: white;
+      font-family: inherit;
+      pointer-events: auto;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    
+    .transfer-info p {
+      margin: 0 0 15px 0;
+      font-size: 14px;
+      color: #ccc;
+    }
+    
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .ingredient-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .ingredient-card:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #007acc;
+    }
+    
+    .ingredient-card.selected {
+      border-color: #ff6f61;
+      background: rgba(255, 111, 97, 0.1);
+    }
+    
+    .ingredient-card .icon {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    
+    .ingredient-card .name {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    
+    .ingredient-card .amount {
+      font-size: 11px;
+      color: #ccc;
+    }
+    
+    .ingredient-card .insufficient {
+      color: #ff6f61;
+    }
+    
+    .ingredient-card .sufficient {
+      color: #4caf50;
+    }
+    
+    .empty-counter {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      grid-column: 1 / -1;
+    }
+    
+    .empty-counter small {
+      display: block;
+      margin-top: 5px;
+      font-size: 11px;
+    }
+    
+    .transfer-controls {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 15px;
+      margin-top: 15px;
+    }
+    
+    .ingredient-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .ingredient-info span:first-child {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    
+    .ingredient-info span:last-child {
+      font-size: 20px;
+    }
+    
+    .transfer-amounts {
+      margin-bottom: 15px;
+    }
+    
+    .amount-display {
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .amount-display label {
+      color: #ccc;
+      margin-right: 8px;
+    }
+    
+    .amount-display span {
+      color: #4caf50;
+      font-weight: 600;
+    }
+    
+    .subtraction-problem {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    
+    .subtraction-problem div {
+      font-family: monospace;
+      font-size: 14px;
+      color: #ffeb3b;
+    }
+    
+    .transfer-result-display {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    .transfer-result-display.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4caf50;
+      color: #4caf50;
+    }
+    
+    .transfer-result-display.error {
+      background: rgba(255, 111, 97, 0.2);
+      border: 1px solid #ff6f61;
+      color: #ff6f61;
+    }
+    
     #three-container {
       width: 100%;
       height: 100%;
@@ -325,6 +488,7 @@
         </div>
         <div class="mode-switch">
           <button class="btn-secondary" id="recipe-mode-btn">Try Recipe Mode 🍪</button>
+          <button class="btn-secondary" id="transfer-mode-btn">Try Transfer Mode 📦</button>
         </div>
         <div class="zoom-control">
           <label for="zoom-slider">Zoom:</label>
@@ -370,6 +534,63 @@
         </div>
         
         <div id="scaled-recipe-result" class="scaled-result-display" style="display: none;"></div>
+      </div>
+      
+      <!-- Ingredient Transfer Panel -->
+      <div class="transfer-panel" style="display: none;">
+        <h3>📦 Pantry Transfer</h3>
+        <div class="transfer-info">
+          <p>Move ingredients from pantry to baking counter using subtraction!</p>
+        </div>
+        
+        <div class="pantry-inventory">
+          <h4>📚 Pantry Inventory</h4>
+          <div id="pantry-items" class="inventory-grid">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+        
+        <div class="baking-counter-display">
+          <h4>🔥 Baking Counter</h4>
+          <div id="counter-items" class="inventory-grid">
+            <div class="empty-counter">
+              <span>Counter is empty</span>
+              <small>Transfer ingredients to start baking!</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="transfer-controls" style="display: none;">
+          <h4>Transfer Ingredient</h4>
+          <div class="ingredient-info">
+            <span id="transfer-ingredient-name">Flour</span>
+            <span id="transfer-ingredient-icon">🌾</span>
+          </div>
+          <div class="transfer-amounts">
+            <div class="amount-display">
+              <label>Available in pantry:</label>
+              <span id="pantry-amount">10 cups</span>
+            </div>
+            <div class="input-group">
+              <label for="transfer-amount">Amount to transfer:</label>
+              <input type="number" id="transfer-amount" min="1" max="20" value="1">
+              <span id="transfer-unit">cups</span>
+            </div>
+          </div>
+          <div class="subtraction-problem">
+            <div id="subtraction-equation">10 cups - 1 cup = 9 cups remaining</div>
+          </div>
+          <div class="button-group">
+            <button class="btn-visualize" id="visualize-transfer-btn">Show Subtraction</button>
+            <button class="btn-calculate" id="confirm-transfer-btn">Confirm Transfer</button>
+            <button class="btn-secondary" id="cancel-transfer-btn">Cancel</button>
+          </div>
+          <div id="transfer-result" class="transfer-result-display" style="display: none;"></div>
+        </div>
+        
+        <div class="button-group">
+          <button class="btn-secondary" id="back-from-transfer-btn">Back to Basic Math</button>
+        </div>
       </div>
     </div>
   </div>

@@ -4,6 +4,9 @@ import { STARTER_INGREDIENTS, IngredientService, IngredientAmount } from './inde
 export function testIngredientSystem(): void {
   console.log('🧪 Testing Ingredient System...');
   
+  // Reset to clean state for demo
+  localStorage.removeItem('bakewatt-pantry');
+  
   // Create ingredient service (will initialize with starter pantry)
   const service = new IngredientService();
   const pantry = service.getPantry();
@@ -17,8 +20,14 @@ export function testIngredientSystem(): void {
   console.log('\n🔢 Testing Subtraction: Transfer 6 cups flour from pantry');
   
   console.log(`Before: ${service.getIngredientAmount('flour')?.toDisplayString()}`);
-  service.removeFromPantry('flour', 6);
-  console.log(`After: ${service.getIngredientAmount('flour')?.toDisplayString()}`);
+  
+  try {
+    service.removeFromPantry('flour', 6);
+    console.log(`After: ${service.getIngredientAmount('flour')?.toDisplayString()}`);
+  } catch (error) {
+    console.warn(`⚠️ Cannot transfer: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(`Pantry unchanged: ${service.getIngredientAmount('flour')?.toDisplayString()}`);
+  }
   
   // Test ingredient addition
   console.log('\n➕ Testing Addition: Add 5 cups flour back to pantry');
@@ -44,12 +53,16 @@ export function testIngredientSystem(): void {
   
   if (canMake) {
     console.log('\n🎯 Transferring ingredients for recipe...');
-    service.transferIngredients(recipeRequirements);
-    
-    console.log('Updated pantry:');
-    service.getAllIngredientAmounts().forEach(amount => {
-      console.log(`  - ${amount.toDisplayString()}`);
-    });
+    try {
+      service.transferIngredients(recipeRequirements);
+      
+      console.log('Updated pantry:');
+      service.getAllIngredientAmounts().forEach(amount => {
+        console.log(`  - ${amount.toDisplayString()}`);
+      });
+    } catch (error) {
+      console.warn(`⚠️ Cannot complete recipe transfer: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   
   console.log('\n✅ Ingredient System Test Complete!');

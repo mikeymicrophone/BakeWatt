@@ -1,7 +1,8 @@
 import { injectable, inject } from 'inversify';
 import { observable, action, computed } from 'mobx';
 import { RecipeService } from '@/domain/baking';
-import { MultiplicationService, RecipeScalingProblem } from '@/core/math/MultiplicationService';
+import { RecipeScalingProblem } from '@/core/math/MultiplicationService';
+import { MathService } from '@/core/math/MathService';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
 import { SceneManager } from '@/core/engine/SceneManager';
 import { CameraZoomManager } from '@/core/engine/CameraZoomManager';
@@ -17,7 +18,7 @@ export class RecipeScalingScene {
 
   constructor(
     @inject(RecipeService) private recipeService: RecipeService,
-    @inject(MultiplicationService) private mathService: MultiplicationService,
+    @inject(MathService) private mathService: MathService,
     @inject(SceneManager) private sceneManager: SceneManager,
     @inject(CameraZoomManager) private zoomManager: CameraZoomManager
   ) {}
@@ -39,16 +40,18 @@ export class RecipeScalingScene {
 
   @action
   public show(): void {
+    console.log('🎯 RecipeScalingScene: show() called');
     this._isVisible = true;
-    this.mathService.setMode('recipe');
+    this.mathService.setMode('recipe-scaling');
     this.updateRecipeDisplay();
     this.setupReactions();
+    console.log('✅ RecipeScalingScene: show() completed');
   }
 
   @action
   public hide(): void {
     this._isVisible = false;
-    this.mathService.setMode('basic');
+    this.mathService.setMode('basic-multiplication');
     this.cleanup();
   }
 
@@ -59,8 +62,17 @@ export class RecipeScalingScene {
   }
 
   private updateRecipeDisplay(): void {
+    console.log('🍪 RecipeScalingScene: updateRecipeDisplay called');
+    console.log('🔍 Looking for recipe ID:', this._currentRecipeId);
+    console.log('📚 Available recipes:', this.recipeService.getAllRecipes().map(r => ({ id: r.id, name: r.name })));
+    
     const recipe = this.recipeService.getRecipe(this._currentRecipeId);
-    if (!recipe) return;
+    if (!recipe) {
+      console.error('❌ Recipe not found:', this._currentRecipeId);
+      return;
+    }
+    
+    console.log('✅ Recipe found:', recipe.name);
 
     // Update recipe info in UI
     this.updateRecipeInfoUI(recipe);

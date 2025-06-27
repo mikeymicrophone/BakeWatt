@@ -7,12 +7,15 @@ import { MultiplicationService } from '@/core/math/MultiplicationService';
 import { IngredientService } from '@/domain/inventory';
 import { RecipeService } from '@/domain/baking';
 import { RecipeScalingScene } from '@/presentation/scenes/RecipeScalingScene';
+import { SubtractionMathScene } from '@/presentation/scenes/SubtractionMathScene';
 import { container } from '@/shared/container';
 import { testIngredientSystem } from '@/domain/inventory/demo';
 import { testRecipeSystem } from '@/domain/baking/demo';
+import { GameState, GameStateFactory } from '@/domain/progression';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
+  @observable private _gameState: GameState;
   
   private sceneManager: SceneManager;
   private zoomManager: CameraZoomManager;
@@ -21,6 +24,7 @@ export class Application {
   private ingredientService: IngredientService;
   private recipeService: RecipeService;
   private recipeScalingScene: RecipeScalingScene;
+  private subtractionMathScene: SubtractionMathScene;
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
@@ -28,6 +32,9 @@ export class Application {
   private zoomCallback: ((level: number) => void) | null = null;
 
   constructor() {
+    // Initialize game state first
+    this._gameState = GameStateFactory.createInitialGameState();
+    
     this.sceneManager = container.get<SceneManager>(SceneManager);
     this.zoomManager = container.get<CameraZoomManager>(CameraZoomManager);
     this.gestureHandler = container.get<GestureHandler>(GestureHandler);
@@ -35,6 +42,7 @@ export class Application {
     this.ingredientService = container.get<IngredientService>(IngredientService);
     this.recipeService = container.get<RecipeService>(RecipeService);
     this.recipeScalingScene = container.get<RecipeScalingScene>(RecipeScalingScene);
+    this.subtractionMathScene = container.get<SubtractionMathScene>(SubtractionMathScene);
   }
 
   @action
@@ -51,17 +59,35 @@ export class Application {
     this.setupUI();
     this.setupZoomSync();
     
-    // Test ingredient system
-    console.log('🧪 Testing Ingredient System Integration...');
-    console.log('📦 Pantry initialized with:', this.ingredientService.getAllIngredientAmounts().length, 'ingredient types');
-    testIngredientSystem();
+    // Initialize game state
+    console.log('🎮 BakeWatt Game State Initialized!');
+    console.log('📦 Pantry:', {
+      flour: this._gameState.pantry.getStock('flour') + ' cups',
+      butter: this._gameState.pantry.getStock('butter') + ' sticks', 
+      eggs: this._gameState.pantry.getStock('eggs') + ' pieces'
+    });
+    console.log('📚 Recipes:', this._gameState.recipes.recipeCount + ' available');
+    console.log('🎯 Level:', this._gameState.currentLevel);
+    console.log('📖 Tutorial completed:', this._gameState.tutorialCompleted);
     
-    // Test recipe system
-    console.log('\n🍪 Testing Recipe System Integration...');
-    console.log('📚 Recipe collection initialized with:', this.recipeService.getAllRecipes().length, 'recipes');
+    // Validate initial state
+    const validation = GameStateFactory.validateInitialGameState(this._gameState);
+    if (validation.isValid) {
+      console.log('✅ Initial game state validation passed');
+    } else {
+      console.warn('⚠️ Game state validation issues:', validation.errors);
+    }
+    
+    // Test systems (legacy demos)
+    console.log('\n🧪 Testing Legacy Systems...');
+    testIngredientSystem();
     testRecipeSystem();
     
     this._isInitialized = true;
+  }
+
+  public get gameState(): GameState {
+    return this._gameState;
   }
 
   private setupUI(): void {
@@ -72,11 +98,13 @@ export class Application {
     const factor2Input = document.getElementById('factor2') as HTMLInputElement;
     const resultDiv = document.getElementById('result') as HTMLDivElement;
     const recipeModeBtn = document.getElementById('recipe-mode-btn') as HTMLButtonElement;
+    const transferModeBtn = document.getElementById('transfer-mode-btn') as HTMLButtonElement;
     
     // Recipe scaling UI elements
     const visualizeScalingBtn = document.getElementById('visualize-scaling-btn') as HTMLButtonElement;
     const showScaledRecipeBtn = document.getElementById('show-scaled-recipe-btn') as HTMLButtonElement;
     const backToBasicBtn = document.getElementById('back-to-basic-btn') as HTMLButtonElement;
+    const backFromTransferBtn = document.getElementById('back-from-transfer-btn') as HTMLButtonElement;
     
     // Common UI elements
     this.zoomSlider = document.getElementById('zoom-slider') as HTMLInputElement;
@@ -123,8 +151,27 @@ export class Application {
       });
     }
 
+    if (transferModeBtn) {
+      transferModeBtn.addEventListener('click', () => {
+        console.log('🎯 Transfer Mode button clicked');
+        try {
+          this.switchToTransferMode();
+          console.log('✅ Switched to transfer mode successfully');
+        } catch (error) {
+          console.error('❌ Error switching to transfer mode:', error);
+          alert('Error switching to transfer mode: ' + (error instanceof Error ? error.message : String(error)));
+        }
+      });
+    }
+
     if (backToBasicBtn) {
       backToBasicBtn.addEventListener('click', () => {
+        this.switchToBasicMode();
+      });
+    }
+
+    if (backFromTransferBtn) {
+      backFromTransferBtn.addEventListener('click', () => {
         this.switchToBasicMode();
       });
     }
@@ -166,22 +213,60 @@ export class Application {
   private switchToRecipeMode(): void {
     const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
     const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
+    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
     
     if (basicPanel) basicPanel.style.display = 'none';
     if (recipePanel) recipePanel.style.display = 'block';
+    if (transferPanel) transferPanel.style.display = 'none';
+    
+    // Clear any existing cubes from previous calculations
+    if (this.cubeGrid) {
+      this.cubeGrid.destroy();
+      this.cubeGrid = null;
+    }
     
     this.recipeScalingScene.show();
+    this.subtractionMathScene.hide();
+  }
+
+  @action
+  private switchToTransferMode(): void {
+    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
+    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
+    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
+    
+    if (basicPanel) basicPanel.style.display = 'none';
+    if (recipePanel) recipePanel.style.display = 'none';
+    if (transferPanel) transferPanel.style.display = 'block';
+    
+    // Clear any existing cubes from previous calculations
+    if (this.cubeGrid) {
+      this.cubeGrid.destroy();
+      this.cubeGrid = null;
+    }
+    
+    this.recipeScalingScene.hide();
+    this.subtractionMathScene.show();
   }
 
   @action
   private switchToBasicMode(): void {
     const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
     const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
+    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
     
     if (basicPanel) basicPanel.style.display = 'block';
     if (recipePanel) recipePanel.style.display = 'none';
+    if (transferPanel) transferPanel.style.display = 'none';
+    
+    // Clear any existing cubes from previous calculations
+    if (this.cubeGrid) {
+      this.cubeGrid.destroy();
+      this.cubeGrid = null;
+    }
     
     this.recipeScalingScene.hide();
+    this.subtractionMathScene.hide();
   }
 
   private setupZoomSync(): void {
