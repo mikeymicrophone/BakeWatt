@@ -5,6 +5,7 @@ import { MathService, IngredientTransferProblem } from '@/core/math/MathService'
 import { CubeGrid } from '@/presentation/components/CubeGrid';
 import { SceneManager } from '@/core/engine/SceneManager';
 import { CameraZoomManager } from '@/core/engine/CameraZoomManager';
+import { GameState } from '@/domain/progression';
 
 @injectable()
 export class SubtractionMathScene {
@@ -15,6 +16,7 @@ export class SubtractionMathScene {
   private cubeGrid: CubeGrid | null = null;
   private bakingCounter: BakingCounter;
   private disposers: (() => void)[] = [];
+  private gameState: GameState | null = null;
 
   constructor(
     @inject(IngredientService) private ingredientService: IngredientService,
@@ -51,12 +53,20 @@ export class SubtractionMathScene {
   get currentTransferProblem(): IngredientTransferProblem | null {
     if (!this.selectedIngredient) return null;
     
-    const pantryAmount = this.ingredientService.getIngredientAmount(this.selectedIngredient.id)?.quantity || 0;
+    // Use GameState pantry if available, otherwise fall back to IngredientService
+    const pantryAmount = this.gameState 
+      ? this.gameState.pantry.getStock(this.selectedIngredient.id)
+      : this.ingredientService.getIngredientAmount(this.selectedIngredient.id)?.quantity || 0;
+      
     return this.mathService.createIngredientTransferProblem(
       this.selectedIngredient,
       pantryAmount,
       this._transferAmount
     );
+  }
+
+  public setGameState(gameState: GameState): void {
+    this.gameState = gameState;
   }
 
   @action
@@ -101,15 +111,17 @@ export class SubtractionMathScene {
     // Create cube grid showing subtraction
     this.cubeGrid = new CubeGrid(this.sceneManager, this.zoomManager);
     
-    // For subtraction, show total amount 
-    const totalCubes = Math.min(problem.pantryAmount, 20); // Limit for visualization
-    
-    // Create grid that fits the total amount
-    const gridSize = Math.ceil(Math.sqrt(totalCubes));
-    this.cubeGrid.createGrid(gridSize, gridSize);
-    
-    // TODO: Implement visual distinction for cubes being removed
     console.log(`🎯 Visualizing subtraction: ${problem.pantryAmount} - ${problem.transferAmount} = ${problem.remainingAmount}`);
+    
+    // Create subtraction grid with initial cubes
+    this.cubeGrid.createSubtractionGrid(problem.pantryAmount, problem.transferAmount);
+    
+    // After a delay, animate the subtraction
+    setTimeout(() => {
+      if (this.cubeGrid) {
+        this.cubeGrid.animateSubtraction(problem.transferAmount);
+      }
+    }, 1000); // Wait 1 second for initial animation to complete
   }
 
   @action
@@ -165,10 +177,11 @@ export class SubtractionMathScene {
     // Clear existing items
     pantryItemsEl.innerHTML = '';
 
-    // Add ingredient cards
+    // Add ingredient cards - use GameState if available
     Object.values(STARTER_INGREDIENTS).forEach(ingredient => {
-      const amount = this.ingredientService.getIngredientAmount(ingredient.id);
-      if (!amount) return;
+      const amount = this.gameState 
+        ? this.gameState.pantry.getStock(ingredient.id)
+        : this.ingredientService.getIngredientAmount(ingredient.id)?.quantity || 0;
 
       const cardEl = document.createElement('div');
       cardEl.className = 'ingredient-card';
@@ -181,8 +194,8 @@ export class SubtractionMathScene {
       cardEl.innerHTML = `
         <div class="icon">${ingredient.icon}</div>
         <div class="name">${ingredient.name}</div>
-        <div class="amount ${amount.quantity > 0 ? 'sufficient' : 'insufficient'}">
-          ${amount.quantity} ${ingredient.unit}
+        <div class="amount ${amount > 0 ? 'sufficient' : 'insufficient'}">
+          ${amount} ${ingredient.unit}
         </div>
       `;
 
@@ -251,7 +264,9 @@ export class SubtractionMathScene {
 
     // Update pantry amount
     const pantryAmountEl = document.getElementById('pantry-amount');
-    const availableAmount = this.ingredientService.getIngredientAmount(this.selectedIngredient.id)?.quantity || 0;
+    const availableAmount = this.gameState 
+      ? this.gameState.pantry.getStock(this.selectedIngredient.id)
+      : this.ingredientService.getIngredientAmount(this.selectedIngredient.id)?.quantity || 0;
     if (pantryAmountEl) {
       pantryAmountEl.textContent = `${availableAmount} ${this.selectedIngredient.unit}`;
     }

@@ -41,11 +41,17 @@ export class RecipeScalingScene {
   @action
   public show(): void {
     console.log('🎯 RecipeScalingScene: show() called');
-    this._isVisible = true;
-    this.mathService.setMode('recipe-scaling');
-    this.updateRecipeDisplay();
-    this.setupReactions();
-    console.log('✅ RecipeScalingScene: show() completed');
+    try {
+      this._isVisible = true;
+      this.mathService.setMode('recipe-scaling');
+      this.updateRecipeDisplay();
+      this.setupReactions();
+      console.log('✅ RecipeScalingScene: show() completed');
+    } catch (error) {
+      console.error('❌ RecipeScalingScene: Error in show():', error);
+      this._isVisible = false;
+      // Don't rethrow - keep app functional
+    }
   }
 
   @action
@@ -66,37 +72,42 @@ export class RecipeScalingScene {
     console.log('🔍 Looking for recipe ID:', this._currentRecipeId);
     console.log('📚 Available recipes:', this.recipeService.getAllRecipes().map(r => ({ id: r.id, name: r.name })));
     
-    const recipe = this.recipeService.getRecipe(this._currentRecipeId);
-    if (!recipe) {
-      console.error('❌ Recipe not found:', this._currentRecipeId);
-      return;
+    try {
+      const recipe = this.recipeService.getRecipe(this._currentRecipeId);
+      if (!recipe) {
+        console.error('❌ Recipe not found:', this._currentRecipeId);
+        return;
+      }
+      
+      console.log('✅ Recipe found:', recipe.name);
+
+      // Update recipe info in UI
+      this.updateRecipeInfoUI(recipe);
+
+      // Create recipe scaling problem
+      const ingredients = recipe.ingredients.map(ing => ({
+        name: ing.ingredient.name,
+        amount: ing.quantity,
+        unit: ing.ingredient.unit
+      }));
+
+      const problem = this.mathService.createRecipeScalingProblem(
+        recipe.id,
+        recipe.name,
+        recipe.baseServings,
+        this._targetServings,
+        ingredients
+      );
+
+      // Update scaling math display
+      this.updateScalingMathUI(problem);
+
+      // Update ingredient problems display
+      this.updateIngredientProblemsUI(problem);
+    } catch (error) {
+      console.error('❌ RecipeScalingScene: Error in updateRecipeDisplay():', error);
+      // Continue gracefully - don't break the app
     }
-    
-    console.log('✅ Recipe found:', recipe.name);
-
-    // Update recipe info in UI
-    this.updateRecipeInfoUI(recipe);
-
-    // Create recipe scaling problem
-    const ingredients = recipe.ingredients.map(ing => ({
-      name: ing.ingredient.name,
-      amount: ing.quantity,
-      unit: ing.ingredient.unit
-    }));
-
-    const problem = this.mathService.createRecipeScalingProblem(
-      recipe.id,
-      recipe.name,
-      recipe.baseServings,
-      this._targetServings,
-      ingredients
-    );
-
-    // Update scaling math display
-    this.updateScalingMathUI(problem);
-
-    // Update ingredient problems display
-    this.updateIngredientProblemsUI(problem);
   }
 
   private updateRecipeInfoUI(recipe: any): void {

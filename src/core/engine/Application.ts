@@ -70,6 +70,7 @@ export class Application {
     console.log('🎯 Level:', this._gameState.currentLevel);
     console.log('📖 Tutorial completed:', this._gameState.tutorialCompleted);
     
+    
     // Validate initial state
     const validation = GameStateFactory.validateInitialGameState(this._gameState);
     if (validation.isValid) {
@@ -97,13 +98,7 @@ export class Application {
     const factor1Input = document.getElementById('factor1') as HTMLInputElement;
     const factor2Input = document.getElementById('factor2') as HTMLInputElement;
     const resultDiv = document.getElementById('result') as HTMLDivElement;
-    const recipeModeBtn = document.getElementById('recipe-mode-btn') as HTMLButtonElement;
     const transferModeBtn = document.getElementById('transfer-mode-btn') as HTMLButtonElement;
-    
-    // Recipe scaling UI elements
-    const visualizeScalingBtn = document.getElementById('visualize-scaling-btn') as HTMLButtonElement;
-    const showScaledRecipeBtn = document.getElementById('show-scaled-recipe-btn') as HTMLButtonElement;
-    const backToBasicBtn = document.getElementById('back-to-basic-btn') as HTMLButtonElement;
     const backFromTransferBtn = document.getElementById('back-from-transfer-btn') as HTMLButtonElement;
     
     // Common UI elements
@@ -138,19 +133,6 @@ export class Application {
     });
 
     // Mode switching handlers
-    if (recipeModeBtn) {
-      recipeModeBtn.addEventListener('click', () => {
-        console.log('🎯 Recipe Mode button clicked');
-        try {
-          this.switchToRecipeMode();
-          console.log('✅ Switched to recipe mode successfully');
-        } catch (error) {
-          console.error('❌ Error switching to recipe mode:', error);
-          alert('Error switching to recipe mode: ' + (error instanceof Error ? error.message : String(error)));
-        }
-      });
-    }
-
     if (transferModeBtn) {
       transferModeBtn.addEventListener('click', () => {
         console.log('🎯 Transfer Mode button clicked');
@@ -164,30 +146,12 @@ export class Application {
       });
     }
 
-    if (backToBasicBtn) {
-      backToBasicBtn.addEventListener('click', () => {
-        this.switchToBasicMode();
-      });
-    }
-
     if (backFromTransferBtn) {
       backFromTransferBtn.addEventListener('click', () => {
         this.switchToBasicMode();
       });
     }
 
-    // Recipe scaling handlers
-    if (visualizeScalingBtn) {
-      visualizeScalingBtn.addEventListener('click', () => {
-        this.recipeScalingScene.visualizeScaling();
-      });
-    }
-
-    if (showScaledRecipeBtn) {
-      showScaledRecipeBtn.addEventListener('click', () => {
-        this.recipeScalingScene.showScaledRecipe();
-      });
-    }
 
     // Handle zoom slider
     this.zoomSlider.addEventListener('input', (e) => {
@@ -209,34 +173,13 @@ export class Application {
     if (factor2Input) factor2Input.addEventListener('keydown', handleEnter);
   }
 
-  @action
-  private switchToRecipeMode(): void {
-    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
-    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
-    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
-    
-    if (basicPanel) basicPanel.style.display = 'none';
-    if (recipePanel) recipePanel.style.display = 'block';
-    if (transferPanel) transferPanel.style.display = 'none';
-    
-    // Clear any existing cubes from previous calculations
-    if (this.cubeGrid) {
-      this.cubeGrid.destroy();
-      this.cubeGrid = null;
-    }
-    
-    this.recipeScalingScene.show();
-    this.subtractionMathScene.hide();
-  }
 
   @action
   private switchToTransferMode(): void {
     const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
-    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
     const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
     
     if (basicPanel) basicPanel.style.display = 'none';
-    if (recipePanel) recipePanel.style.display = 'none';
     if (transferPanel) transferPanel.style.display = 'block';
     
     // Clear any existing cubes from previous calculations
@@ -245,18 +188,17 @@ export class Application {
       this.cubeGrid = null;
     }
     
-    this.recipeScalingScene.hide();
+    // Pass gameState to the scene
+    this.subtractionMathScene.setGameState(this._gameState);
     this.subtractionMathScene.show();
   }
 
   @action
   private switchToBasicMode(): void {
     const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
-    const recipePanel = document.querySelector('.recipe-panel') as HTMLElement;
     const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
     
     if (basicPanel) basicPanel.style.display = 'block';
-    if (recipePanel) recipePanel.style.display = 'none';
     if (transferPanel) transferPanel.style.display = 'none';
     
     // Clear any existing cubes from previous calculations
@@ -265,7 +207,6 @@ export class Application {
       this.cubeGrid = null;
     }
     
-    this.recipeScalingScene.hide();
     this.subtractionMathScene.hide();
   }
 
