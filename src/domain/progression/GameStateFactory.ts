@@ -10,11 +10,14 @@ export class GameStateFactory {
    * As specified in Issue #6: Initial Game State & Tutorial
    */
   public static createInitialGameState(): GameState {
-    // Create pantry with starter ingredients (Issue #6 specs)
+    // Create pantry with starter ingredients (Issue #6 specs + additions)
     const pantry = new Pantry();
-    pantry.addIngredient(STARTER_INGREDIENTS.FLOUR.id, 15);  // 15 cups flour
-    pantry.addIngredient(STARTER_INGREDIENTS.BUTTER.id, 6);  // 6 sticks butter
-    pantry.addIngredient(STARTER_INGREDIENTS.EGGS.id, 12);   // 12 eggs
+    pantry.addIngredient(STARTER_INGREDIENTS.FLOUR.id, 15);      // 15 cups flour
+    pantry.addIngredient(STARTER_INGREDIENTS.BUTTER.id, 6);      // 6 sticks butter
+    pantry.addIngredient(STARTER_INGREDIENTS.EGGS.id, 12);       // 12 eggs
+    pantry.addIngredient(STARTER_INGREDIENTS.SUGAR.id, 99);      // 99 teaspoons sugar
+    pantry.addIngredient(STARTER_INGREDIENTS.CHOCOLATE.id, 50);  // 50 pieces chocolate
+    pantry.addIngredient(STARTER_INGREDIENTS.VANILLA.id, 10);    // 10 grams vanilla
 
     // Create recipe collection with starter recipe
     const recipes = new RecipeCollection();
@@ -92,6 +95,15 @@ export class GameStateFactory {
     }
     if (!gameState.pantry.hasEnough(STARTER_INGREDIENTS.EGGS.id, 12)) {
       errors.push('Missing required eggs: need 12 pieces');
+    }
+    if (!gameState.pantry.hasEnough(STARTER_INGREDIENTS.SUGAR.id, 99)) {
+      errors.push('Missing required sugar: need 99 teaspoons');
+    }
+    if (!gameState.pantry.hasEnough(STARTER_INGREDIENTS.CHOCOLATE.id, 50)) {
+      errors.push('Missing required chocolate: need 50 pieces');
+    }
+    if (!gameState.pantry.hasEnough(STARTER_INGREDIENTS.VANILLA.id, 10)) {
+      errors.push('Missing required vanilla: need 10 grams');
     }
 
     // Check has starter recipe

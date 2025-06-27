@@ -241,8 +241,26 @@ export class CubeGrid {
   public createSubtractionGrid(totalAmount: number, removeAmount: number): void {
     this.clearGrid();
     
-    // Limit visualization to reasonable size
-    const maxCubes = Math.min(totalAmount, 20);
+    // For large numbers, use representative cubes
+    let maxCubes: number;
+    let cubeValue: number; // How much each cube represents
+    
+    if (totalAmount <= 20) {
+      // Show each unit as one cube
+      maxCubes = totalAmount;
+      cubeValue = 1;
+    } else if (totalAmount <= 100) {
+      // Each cube represents 5 units
+      maxCubes = Math.ceil(totalAmount / 5);
+      cubeValue = 5;
+    } else {
+      // Each cube represents 10 units  
+      maxCubes = Math.ceil(totalAmount / 10);
+      cubeValue = 10;
+    }
+    
+    // Limit to reasonable visual size
+    maxCubes = Math.min(maxCubes, 25);
     
     // Calculate grid dimensions - prefer wide layout for subtraction
     let columns = Math.ceil(Math.sqrt(maxCubes * 1.5));
@@ -257,11 +275,14 @@ export class CubeGrid {
     const offsetX = -totalWidth / 2;
     const offsetZ = -totalDepth / 2;
 
+    // Calculate how many cubes to remove
+    const removeCubes = Math.ceil(removeAmount / cubeValue);
+    
     // Create cubes for the total amount
     for (let i = 0; i < maxCubes; i++) {
       const row = Math.floor(i / columns);
       const col = i % columns;
-      const cubeNumber = i + 1;
+      const cubeNumber = (i + 1) * cubeValue; // Display the value this cube represents
       
       const cubeMaterial = this.material.clone();
       const cube = new THREE.Mesh(this.geometry, cubeMaterial);
@@ -273,8 +294,8 @@ export class CubeGrid {
       cube.castShadow = true;
       cube.receiveShadow = true;
       
-      // Color based on whether it will be removed
-      const willBeRemoved = i < removeAmount;
+      // Color based on whether it will be removed (take from bottom first)
+      const willBeRemoved = i >= (maxCubes - removeCubes);
       if (willBeRemoved) {
         cubeMaterial.color.setHex(0xff6b35); // Orange for cubes to be removed
       } else {
@@ -298,6 +319,9 @@ export class CubeGrid {
       // Animate cube appearance
       this.animateCubeIn(cube, i * 50);
     }
+    
+    // Store the cube value for the animation method
+    (this as any).cubeValue = cubeValue;
 
     // Position camera to view the grid nicely
     this.adjustCameraForGrid(rows, columns);
@@ -308,7 +332,12 @@ export class CubeGrid {
 
   @action
   public animateSubtraction(removeAmount: number): void {
-    const cubesToRemove = this.cubes.slice(0, Math.min(removeAmount, this.cubes.length));
+    const cubeValue = (this as any).cubeValue || 1;
+    const removeCubes = Math.ceil(removeAmount / cubeValue);
+    
+    // Take cubes from the end (bottom) of the grid
+    const totalCubes = this.cubes.length;
+    const cubesToRemove = this.cubes.slice(totalCubes - removeCubes, totalCubes);
     const spacing = 1.0;
     
     // Calculate position for removed cubes (to the right of the grid)
@@ -320,12 +349,13 @@ export class CubeGrid {
       // Change material to removed color
       cubeInfo.baseMaterial.color.setHex(0xff4444);
       
-      // Calculate new position (stack removed cubes)
-      const newRow = Math.floor(index / 3); // 3 cubes per row in removed area
-      const newCol = index % 3;
+      // Calculate new position with proper spacing (grid layout in removed area)
+      const removedColumns = Math.min(3, removeCubes); // Max 3 columns in removed area
+      const newRow = Math.floor(index / removedColumns);
+      const newCol = index % removedColumns;
       
-      const targetX = rightOffset + newCol * spacing * 0.8;
-      const targetZ = -newRow * spacing * 0.8;
+      const targetX = rightOffset + newCol * spacing;
+      const targetZ = -newRow * spacing;
       const targetY = 0.4;
       
       // Animate movement
