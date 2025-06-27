@@ -1,6 +1,8 @@
-import { observable, action } from 'mobx';
+import { observable, action, autorun } from 'mobx';
 import { SceneManager } from './SceneManager';
+import { CameraZoomManager } from './CameraZoomManager';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
+import { GestureHandler } from '@/presentation/ui/GestureHandler';
 import { MultiplicationService } from '@/core/math/MultiplicationService';
 import { container } from '@/shared/container';
 
@@ -8,11 +10,18 @@ export class Application {
   @observable private _isInitialized: boolean = false;
   
   private sceneManager: SceneManager;
+  private zoomManager: CameraZoomManager;
+  private gestureHandler: GestureHandler;
   private multiplicationService: MultiplicationService;
   private cubeGrid: CubeGrid | null = null;
+  private zoomSlider: HTMLInputElement | null = null;
+  private zoomValue: HTMLSpanElement | null = null;
+  private autorunDisposer: (() => void) | null = null;
 
   constructor() {
     this.sceneManager = container.get<SceneManager>(SceneManager);
+    this.zoomManager = container.get<CameraZoomManager>(CameraZoomManager);
+    this.gestureHandler = container.get<GestureHandler>(GestureHandler);
     this.multiplicationService = container.get<MultiplicationService>(MultiplicationService);
   }
 
@@ -26,7 +35,9 @@ export class Application {
     }
 
     this.sceneManager.mount(container);
+    this.gestureHandler.mount(container);
     this.setupUI();
+    this.setupZoomSync();
     
     this._isInitialized = true;
   }
@@ -37,8 +48,10 @@ export class Application {
     const factor1Input = document.getElementById('factor1') as HTMLInputElement;
     const factor2Input = document.getElementById('factor2') as HTMLInputElement;
     const resultDiv = document.getElementById('result') as HTMLDivElement;
+    this.zoomSlider = document.getElementById('zoom-slider') as HTMLInputElement;
+    this.zoomValue = document.getElementById('zoom-value') as HTMLSpanElement;
 
-    if (!visualizeBtn || !calculateBtn || !factor1Input || !factor2Input || !resultDiv) {
+    if (!visualizeBtn || !calculateBtn || !factor1Input || !factor2Input || !resultDiv || !this.zoomSlider || !this.zoomValue) {
       throw new Error('Required UI elements not found');
     }
 
@@ -50,6 +63,13 @@ export class Application {
       this.handleCalculate(resultDiv);
     });
 
+    // Handle zoom slider
+    this.zoomSlider.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      const zoomLevel = parseFloat(target.value);
+      this.zoomManager.setZoomLevel(zoomLevel, true);
+    });
+
     // Handle Enter key in inputs
     const handleEnter = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
@@ -59,6 +79,26 @@ export class Application {
     
     factor1Input.addEventListener('keydown', handleEnter);
     factor2Input.addEventListener('keydown', handleEnter);
+  }
+
+  private setupZoomSync(): void {
+    // Sync slider and display with zoom manager changes
+    this.autorunDisposer = autorun(() => {
+      const zoomLevel = this.zoomManager.zoomLevel;
+      
+      if (this.zoomSlider) {
+        this.zoomSlider.value = zoomLevel.toString();
+      }
+      
+      if (this.zoomValue) {
+        this.zoomValue.textContent = `${zoomLevel.toFixed(1)}x`;
+      }
+      
+      // Update cube numbers visibility
+      if (this.cubeGrid) {
+        this.cubeGrid.updateNumberVisibility();
+      }
+    });
   }
 
   @action
@@ -113,6 +153,13 @@ export class Application {
     if (this.cubeGrid) {
       this.cubeGrid.destroy();
     }
+    
+    if (this.autorunDisposer) {
+      this.autorunDisposer();
+    }
+    
+    this.gestureHandler.unmount();
+    this.zoomManager.destroy();
     this.sceneManager.unmount();
     this._isInitialized = false;
   }

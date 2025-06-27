@@ -105,6 +105,60 @@
       transform: translateY(-1px);
     }
     
+    .zoom-control {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .zoom-control label {
+      font-size: 14px;
+      color: #ccc;
+      min-width: 40px;
+    }
+    
+    .zoom-slider {
+      flex: 1;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .zoom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #007acc;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    
+    .zoom-slider::-webkit-slider-thumb:hover {
+      background: #005a9e;
+    }
+    
+    .zoom-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #007acc;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+    
+    #zoom-value {
+      font-size: 12px;
+      color: #007acc;
+      font-weight: 600;
+      min-width: 35px;
+      text-align: right;
+    }
+    
     .result-display {
       margin-top: 20px;
       padding: 15px;
@@ -139,6 +193,11 @@
         <div class="button-group">
           <button class="btn-visualize" id="visualize-btn">Show Cubes</button>
           <button class="btn-calculate" id="calculate-btn">Show Result</button>
+        </div>
+        <div class="zoom-control">
+          <label for="zoom-slider">Zoom:</label>
+          <input type="range" id="zoom-slider" min="0.5" max="3" step="0.1" value="1" class="zoom-slider">
+          <span id="zoom-value">1.0x</span>
         </div>
         <div id="result" class="result-display" style="display: none;"></div>
       </div>
