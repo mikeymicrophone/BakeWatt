@@ -1,0 +1,33 @@
+{
+  "name": "bakewatt",
+  "version": "1.0.0",
+  "description": "Educational math game through baking activities",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.158.0",
+    "mobx": "^6.12.0",
+    "mobx-react-lite": "^4.0.5",
+    "inversify": "^6.0.2",
+    "class-transformer": "^0.5.1",
+    "fp-ts": "^2.16.1",
+    "@tweenjs/tween.js": "^21.0.0",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/three": "^0.158.3",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "eslint": "^8.55.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vitest": "^1.0.4"
+  }
+}
