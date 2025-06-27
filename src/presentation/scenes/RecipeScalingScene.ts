@@ -3,7 +3,8 @@ import { observable, action, computed } from 'mobx';
 import { RecipeService } from '@/domain/baking';
 import { MultiplicationService, RecipeScalingProblem } from '@/core/math/MultiplicationService';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
-import { container } from '@/shared/container';
+import { SceneManager } from '@/core/engine/SceneManager';
+import { CameraZoomManager } from '@/core/engine/CameraZoomManager';
 
 @injectable()
 export class RecipeScalingScene {
@@ -16,7 +17,9 @@ export class RecipeScalingScene {
 
   constructor(
     @inject(RecipeService) private recipeService: RecipeService,
-    @inject(MultiplicationService) private mathService: MultiplicationService
+    @inject(MultiplicationService) private mathService: MultiplicationService,
+    @inject(SceneManager) private sceneManager: SceneManager,
+    @inject(CameraZoomManager) private zoomManager: CameraZoomManager
   ) {}
 
   @computed
@@ -133,7 +136,7 @@ export class RecipeScalingScene {
     }
 
     // Create new cube grid
-    this.cubeGrid = container.get<CubeGrid>(CubeGrid);
+    this.cubeGrid = new CubeGrid(this.sceneManager, this.zoomManager);
     this.cubeGrid.createGrid(dimensions.rows, dimensions.columns);
   }
 

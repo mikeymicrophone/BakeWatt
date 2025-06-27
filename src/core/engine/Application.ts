@@ -41,13 +41,13 @@ export class Application {
   public async initialize(): Promise<void> {
     if (this._isInitialized) return;
 
-    const container = document.getElementById('three-container');
-    if (!container) {
+    const threeContainer = document.getElementById('three-container');
+    if (!threeContainer) {
       throw new Error('Three.js container not found');
     }
 
-    this.sceneManager.mount(container);
-    this.gestureHandler.mount(container);
+    this.sceneManager.mount(threeContainer);
+    this.gestureHandler.mount(threeContainer);
     this.setupUI();
     this.setupZoomSync();
     
@@ -88,17 +88,38 @@ export class Application {
 
     // Basic math mode handlers
     visualizeBtn.addEventListener('click', () => {
-      this.handleVisualize(factor1Input, factor2Input, resultDiv);
+      console.log('🎯 Show Cubes button clicked');
+      try {
+        this.handleVisualize(factor1Input, factor2Input, resultDiv);
+        console.log('✅ Visualization completed successfully');
+      } catch (error) {
+        console.error('❌ Error in handleVisualize:', error);
+        alert('Error creating visualization: ' + (error instanceof Error ? error.message : String(error)));
+      }
     });
 
     calculateBtn.addEventListener('click', () => {
-      this.handleCalculate(resultDiv);
+      console.log('🎯 Show Result button clicked');
+      try {
+        this.handleCalculate(resultDiv);
+        console.log('✅ Result calculation completed successfully');
+      } catch (error) {
+        console.error('❌ Error in handleCalculate:', error);
+        alert('Error calculating result: ' + (error instanceof Error ? error.message : String(error)));
+      }
     });
 
     // Mode switching handlers
     if (recipeModeBtn) {
       recipeModeBtn.addEventListener('click', () => {
-        this.switchToRecipeMode();
+        console.log('🎯 Recipe Mode button clicked');
+        try {
+          this.switchToRecipeMode();
+          console.log('✅ Switched to recipe mode successfully');
+        } catch (error) {
+          console.error('❌ Error switching to recipe mode:', error);
+          alert('Error switching to recipe mode: ' + (error instanceof Error ? error.message : String(error)));
+        }
       });
     }
 
