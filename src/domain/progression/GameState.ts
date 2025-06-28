@@ -1,10 +1,12 @@
 import { observable, action, computed } from 'mobx';
 import { Pantry, PantryState } from '@/domain/inventory';
 import { RecipeCollection, type RecipeCollectionState } from '@/domain/baking';
+import { Store, StoreState } from '@/domain/store';
 
 export interface GameStateData {
   pantry: PantryState;
   recipes: RecipeCollectionState;
+  store: StoreState;
   currentLevel: number;
   tutorialCompleted: boolean;
   gameVersion: string;
@@ -14,6 +16,7 @@ export interface GameStateData {
 export class GameState {
   @observable private _pantry: Pantry;
   @observable private _recipes: RecipeCollection;
+  @observable private _store: Store;
   @observable private _currentLevel: number = 1;
   @observable private _tutorialCompleted: boolean = false;
   private readonly _gameVersion: string = '1.0.0';
@@ -21,11 +24,13 @@ export class GameState {
   constructor(
     pantry: Pantry = new Pantry(),
     recipes: RecipeCollection = new RecipeCollection(),
+    store: Store = new Store(),
     currentLevel: number = 1,
     tutorialCompleted: boolean = false
   ) {
     this._pantry = pantry;
     this._recipes = recipes;
+    this._store = store;
     this._currentLevel = currentLevel;
     this._tutorialCompleted = tutorialCompleted;
   }
@@ -38,6 +43,11 @@ export class GameState {
   @computed
   public get recipes(): RecipeCollection {
     return this._recipes;
+  }
+
+  @computed
+  public get store(): Store {
+    return this._store;
   }
 
   @computed
@@ -77,6 +87,8 @@ export class GameState {
   public resetToDefaults(): void {
     this._pantry.clear();
     this._recipes = new RecipeCollection();
+    this._store.clearInventory();
+    this._store.resetRevenue();
     this._currentLevel = 1;
     this._tutorialCompleted = false;
   }
@@ -121,6 +133,7 @@ export class GameState {
     return {
       pantry: this._pantry.toState(),
       recipes: this._recipes.toState(),
+      store: this._store.toState(),
       currentLevel: this._currentLevel,
       tutorialCompleted: this._tutorialCompleted,
       gameVersion: this._gameVersion,
@@ -134,10 +147,12 @@ export class GameState {
   ): GameState {
     const pantry = new Pantry(data.pantry);
     const recipes = RecipeCollection.fromState(data.recipes, recipeRegistry);
+    const store = new Store(data.store || undefined); // Handle missing store data
     
     const gameState = new GameState(
       pantry,
       recipes,
+      store,
       data.currentLevel,
       data.tutorialCompleted
     );
@@ -155,6 +170,7 @@ export class GameState {
     return new GameState(
       this._pantry.clone(),
       this._recipes.clone(),
+      this._store.clone(),
       this._currentLevel,
       this._tutorialCompleted
     );

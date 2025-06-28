@@ -1,6 +1,7 @@
 import { GameState } from './GameState';
 import { Pantry } from '@/domain/inventory';
 import { RecipeCollection } from '@/domain/baking';
+import { Store } from '@/domain/store';
 import { RecipeLibrary, RECIPE_REGISTRY } from '@/domain/baking/RecipeLibrary';
 import { STARTER_INGREDIENTS } from '@/domain/inventory/Ingredient';
 
@@ -23,10 +24,14 @@ export class GameStateFactory {
     const recipes = new RecipeCollection();
     recipes.addRecipe(RecipeLibrary.getStarterRecipe()); // Simple Cookies
 
+    // Create empty store
+    const store = new Store();
+
     // Create initial game state
     const gameState = new GameState(
       pantry,
       recipes,
+      store,
       1,     // level 1
       false  // tutorial not completed
     );
@@ -38,7 +43,7 @@ export class GameStateFactory {
    * Create a default/empty game state for testing or reset
    */
   public static createEmptyGameState(): GameState {
-    return new GameState();
+    return new GameState(new Pantry(), new RecipeCollection(), new Store());
   }
 
   /**
@@ -57,7 +62,9 @@ export class GameStateFactory {
     const recipes = new RecipeCollection();
     recipes.addRecipe(RecipeLibrary.getStarterRecipe());
 
-    return new GameState(pantry, recipes, 1, false);
+    const store = new Store();
+
+    return new GameState(pantry, recipes, store, 1, false);
   }
 
   /**
@@ -74,7 +81,9 @@ export class GameStateFactory {
       recipes.addRecipe(recipe);
     });
 
-    return new GameState(pantry, recipes, 5, true); // Higher level, tutorial complete
+    const store = new Store();
+
+    return new GameState(pantry, recipes, store, 5, true); // Higher level, tutorial complete
   }
 
   /**

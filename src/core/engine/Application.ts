@@ -73,6 +73,7 @@ export class Application {
     this.setupPantryStockModal();
     this.setupCookingInterface();
     this.setupProductionInterface();
+    this.setupStoreInterface();
     this.populateRecipeCollection();
     
     // Make app instance globally accessible early
@@ -179,14 +180,16 @@ export class Application {
     const mathTab = document.getElementById('math-tab') as HTMLButtonElement;
     const transferTab = document.getElementById('transfer-tab') as HTMLButtonElement;
     const recipesTab = document.getElementById('recipes-tab') as HTMLButtonElement;
+    const storeTab = document.getElementById('store-tab') as HTMLButtonElement;
 
-    if (!mathTab || !transferTab || !recipesTab) {
+    if (!mathTab || !transferTab || !recipesTab || !storeTab) {
       throw new Error('Tab navigation elements not found');
     }
 
     mathTab.addEventListener('click', () => this.switchToTab('math'));
     transferTab.addEventListener('click', () => this.switchToTab('transfer'));
     recipesTab.addEventListener('click', () => this.switchToTab('recipes'));
+    storeTab.addEventListener('click', () => this.switchToTab('store'));
   }
 
   @action
@@ -208,10 +211,12 @@ export class Application {
     const transferPanel = document.getElementById('transfer-panel');
     const recipePanel = document.getElementById('recipe-collection-panel');
     const cookingPanel = document.getElementById('cooking-step-panel');
+    const storePanel = document.getElementById('store-panel');
     
     if (mathPanel) mathPanel.style.display = tabName === 'math' ? 'block' : 'none';
     if (transferPanel) transferPanel.style.display = tabName === 'transfer' ? 'block' : 'none';
     if (recipePanel) recipePanel.style.display = tabName === 'recipes' ? 'block' : 'none';
+    if (storePanel) storePanel.style.display = tabName === 'store' ? 'block' : 'none';
     if (cookingPanel && tabName !== 'cooking') cookingPanel.style.display = 'none';
     
     // Clear any existing cubes when switching tabs
@@ -226,6 +231,10 @@ export class Application {
       this.subtractionMathScene.show();
     } else {
       this.subtractionMathScene.hide();
+    }
+    
+    if (tabName === 'store') {
+      this.updateStoreDisplay();
     }
   }
 
@@ -1180,15 +1189,224 @@ export class Application {
   private finishProduction(): void {
     console.log('✅ Production finished');
     
-    // Here you could add the produced items to inventory
-    // For now, just show a success message
     const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
     const totalPackages = Math.floor(initialItems * piecesPerItem / piecesPerPackage);
     
-    alert(`Great job! You produced ${totalPackages} packages of ${this._currentRecipe?.name}! 🎉`);
+    if (this._currentRecipe && totalPackages > 0) {
+      // Add packages to store
+      const packageName = `${this._currentRecipe.name} Package`;
+      const basePrice = this.calculateBasePrice(this._currentRecipe.name);
+      
+      this._gameState.store.addItem(
+        `${this._currentRecipe.id}_package`,
+        packageName,
+        '📦',
+        basePrice,
+        totalPackages,
+        'packages',
+        this._currentRecipe.id
+      );
+      
+      this.showSalesNotification(`Added ${totalPackages} packages to store!`);
+    }
     
     this.hideProductionInterface();
     this.cancelCooking();
+  }
+
+  private calculateBasePrice(recipeName: string): number {
+    // Simple pricing based on recipe complexity
+    const basePrices: Record<string, number> = {
+      'cookies': 2.50,
+      'brownies': 3.00,
+      'muffins': 2.75,
+      'bread': 4.00,
+      'cake': 5.00
+    };
+    
+    const recipeKey = recipeName.toLowerCase();
+    for (const [key, price] of Object.entries(basePrices)) {
+      if (recipeKey.includes(key)) {
+        return price;
+      }
+    }
+    
+    return 3.00; // Default price
+  }
+
+  private setupStoreInterface(): void {
+    const closeBtn = document.getElementById('btn-close-store');
+    const locationSelect = document.getElementById('location-select') as HTMLSelectElement;
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.switchToTab('recipes');
+      });
+    }
+
+    if (locationSelect) {
+      locationSelect.addEventListener('change', (e) => {
+        const newLocation = (e.target as HTMLSelectElement).value as any;
+        this._gameState.store.updateLocation(newLocation);
+        this.updateStoreDisplay();
+      });
+    }
+  }
+
+  @action
+  private updateStoreDisplay(): void {
+    this.updateStoreStats();
+    this.updateStoreInventory();
+  }
+
+  private updateStoreStats(): void {
+    const store = this._gameState.store;
+    
+    // Update main stats
+    const totalRevenueEl = document.getElementById('total-revenue');
+    const itemsInStockEl = document.getElementById('items-in-stock');
+    const storeValueEl = document.getElementById('store-value');
+    const dailySalesEl = document.getElementById('daily-sales');
+
+    if (totalRevenueEl) totalRevenueEl.textContent = `$${store.getTotalRevenue().toFixed(2)}`;
+    if (itemsInStockEl) itemsInStockEl.textContent = store.getAllItems().reduce((sum, item) => sum + item.quantity, 0).toString();
+    if (storeValueEl) storeValueEl.textContent = `$${store.getInventoryValue().toFixed(2)}`;
+    
+    const salesStats = store.getSalesStats(24);
+    if (dailySalesEl) dailySalesEl.textContent = salesStats.totalSales.toString();
+  }
+
+  private updateStoreInventory(): void {
+    const store = this._gameState.store;
+    
+    // Update each category
+    this.updateStoreCategory('baked_goods', '🧁', 'baked-goods');
+    this.updateStoreCategory('packages', '📦', 'packages');
+    this.updateStoreCategory('ingredients', '🌾', 'ingredients');
+  }
+
+  private updateStoreCategory(category: any, icon: string, elementPrefix: string): void {
+    const store = this._gameState.store;
+    const items = store.getItemsByCategory(category);
+    
+    const countEl = document.getElementById(`${elementPrefix}-count`);
+    const gridEl = document.getElementById(`${elementPrefix}-grid`);
+    
+    if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    
+    if (gridEl) {
+      if (items.length === 0) {
+        gridEl.innerHTML = `
+          <div class="empty-inventory">
+            <div class="empty-inventory-icon">${icon}</div>
+            <div class="empty-inventory-text">No ${category.replace('_', ' ')} in stock</div>
+            <div class="empty-inventory-hint">Complete recipes to add items to your store</div>
+          </div>
+        `;
+      } else {
+        let itemsHTML = '';
+        
+        items.forEach(item => {
+          const currentPrice = store.getCurrentPrice(item.id) || 0;
+          const modifiers = store.getPriceModifiers(item.id);
+          const freshnessHours = item.getFreshnessHours();
+          
+          let freshnessClass = '';
+          if (freshnessHours > 24) freshnessClass = 'old';
+          else if (freshnessHours > 12) freshnessClass = 'stale';
+          
+          let modifiersHTML = '';
+          if (modifiers) {
+            modifiersHTML = `
+              <div class="store-item-modifiers">
+                <div class="store-item-modifiers-title">Price Modifiers</div>
+                <div class="modifiers-grid">
+                  <div class="modifier-item">
+                    <span class="modifier-name">Time</span>
+                    <span class="modifier-value ${modifiers.timeOfDay > 1 ? 'positive' : modifiers.timeOfDay < 1 ? 'negative' : ''}">${(modifiers.timeOfDay * 100).toFixed(0)}%</span>
+                  </div>
+                  <div class="modifier-item">
+                    <span class="modifier-name">Demand</span>
+                    <span class="modifier-value ${modifiers.demand > 1 ? 'positive' : modifiers.demand < 1 ? 'negative' : ''}">${(modifiers.demand * 100).toFixed(0)}%</span>
+                  </div>
+                  <div class="modifier-item">
+                    <span class="modifier-name">Location</span>
+                    <span class="modifier-value ${modifiers.location > 1 ? 'positive' : modifiers.location < 1 ? 'negative' : ''}">${(modifiers.location * 100).toFixed(0)}%</span>
+                  </div>
+                  <div class="modifier-item">
+                    <span class="modifier-name">Fresh</span>
+                    <span class="modifier-value ${modifiers.freshness < 1 ? 'negative' : ''}">${(modifiers.freshness * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+          
+          itemsHTML += `
+            <div class="store-item-card">
+              <div class="freshness-indicator ${freshnessClass}"></div>
+              <div class="store-item-header">
+                <div class="store-item-info">
+                  <div class="store-item-icon">${item.icon}</div>
+                  <div class="store-item-details">
+                    <h4 class="store-item-name">${item.name}</h4>
+                    <div class="store-item-quantity">${item.quantity} in stock</div>
+                  </div>
+                </div>
+                <div class="store-item-pricing">
+                  <div class="store-item-price">$${currentPrice.toFixed(2)}</div>
+                  ${currentPrice !== item.basePrice ? `<div class="store-item-base-price">$${item.basePrice.toFixed(2)}</div>` : ''}
+                </div>
+              </div>
+              ${modifiersHTML}
+              <div class="store-item-actions">
+                <div class="sell-controls">
+                  <input type="number" class="sell-quantity-input" value="1" min="1" max="${item.quantity}" id="sell-qty-${item.id}">
+                  <button class="btn-sell" onclick="window.appInstance.sellItem('${item.id}')" ${item.quantity === 0 ? 'disabled' : ''}>
+                    Sell
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        gridEl.innerHTML = itemsHTML;
+      }
+    }
+  }
+
+  @action
+  public sellItem(itemId: string): void {
+    const quantityInput = document.getElementById(`sell-qty-${itemId}`) as HTMLInputElement;
+    if (!quantityInput) return;
+    
+    const quantity = parseInt(quantityInput.value);
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+    
+    const result = this._gameState.store.sellItem(itemId, quantity);
+    
+    if (result.success) {
+      this.showSalesNotification(`Sold ${quantity} items for $${result.revenue.toFixed(2)}!`);
+      this.updateStoreDisplay();
+    } else {
+      alert(result.error || 'Sale failed');
+    }
+  }
+
+  private showSalesNotification(message: string): void {
+    const notification = document.getElementById('sales-notification');
+    if (notification) {
+      notification.textContent = message;
+      notification.classList.add('show');
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
   }
 
   public destroy(): void {
