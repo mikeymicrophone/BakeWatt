@@ -160,6 +160,147 @@
   margin-top: 4px;
 }
 
+/* Pantry Button */
+.pantry-button-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.btn-pantry {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid #4caf50;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-pantry:hover {
+  background: rgba(76, 175, 80, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Pantry Stock Modal */
+.pantry-stock-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.pantry-stock-content {
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+.pantry-stock-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pantry-stock-title {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pantry-stock-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pantry-stock-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.pantry-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.pantry-stock-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.pantry-stock-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #4caf50;
+}
+
+.pantry-stock-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pantry-stock-icon {
+  font-size: 24px;
+}
+
+.pantry-stock-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.pantry-stock-amount {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.pantry-stock-amount.low {
+  color: #ff9800;
+}
+
+.pantry-stock-amount.empty {
+  color: #f44336;
+}
+
 .recipe-steps-section {
   margin-bottom: 25px;
 }

@@ -174,6 +174,11 @@
           
           <div class="recipe-ingredients-section">
             <h3>🧄 Ingredients</h3>
+            <div class="pantry-button-container">
+              <button class="btn-pantry" id="btn-show-pantry">
+                📦 View Pantry Stock
+              </button>
+            </div>
             <div id="recipe-details-ingredients">
               <!-- Will be populated dynamically -->
             </div>
@@ -184,6 +189,22 @@
             <div id="recipe-details-steps">
               <!-- Will be populated dynamically -->
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pantry Stock Modal -->
+      <div class="pantry-stock-modal" id="pantry-stock-modal">
+        <div class="pantry-stock-content">
+          <button class="pantry-stock-close" id="pantry-stock-close">×</button>
+          
+          <div class="pantry-stock-header">
+            <div class="pantry-stock-icon">📦</div>
+            <h1 class="pantry-stock-title">Pantry Stock</h1>
+          </div>
+          
+          <div class="pantry-stock-grid" id="pantry-stock-grid">
+            <!-- Will be populated dynamically -->
           </div>
         </div>
       </div>

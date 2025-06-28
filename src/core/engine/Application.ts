@@ -65,8 +65,15 @@ export class Application {
     this.setupZoomSync();
     this.setupTabNavigation();
     this.setupRecipeDetailsModal();
+    this.setupPantryStockModal();
     this.setupCookingInterface();
     this.populateRecipeCollection();
+    
+    // Make app instance globally accessible early
+    (window as any).appInstance = this;
+    
+    // Set up global modal handlers
+    this.setupGlobalModalHandlers();
     
     // Initialize game state
     console.log('🎮 BakeWatt Game State Initialized!');
@@ -94,9 +101,6 @@ export class Application {
     testRecipeSystem();
     
     this._isInitialized = true;
-    
-    // Make app instance globally accessible for recipe details
-    (window as any).appInstance = this;
   }
 
   public get gameState(): GameState {
@@ -285,12 +289,16 @@ export class Application {
     const modal = document.getElementById('recipe-details-modal');
     const closeBtn = document.getElementById('recipe-details-close');
     
+    console.log('Setting up recipe details modal:', { modal: !!modal, closeBtn: !!closeBtn });
+    
     if (!modal || !closeBtn) {
-      throw new Error('Recipe details modal elements not found');
+      console.error('Recipe details modal elements not found:', { modal: !!modal, closeBtn: !!closeBtn });
+      return;
     }
 
     // Close modal when clicking close button
     closeBtn.addEventListener('click', () => {
+      console.log('Recipe details close button clicked');
       this.hideRecipeDetails();
     });
 
@@ -325,15 +333,24 @@ export class Application {
     // Show modal
     const modal = document.getElementById('recipe-details-modal');
     if (modal) {
-      modal.style.display = 'flex';
+      console.log('Recipe modal element found, showing');
+      modal.style.setProperty('display', 'flex', 'important');
+      console.log('Modal display style set to:', modal.style.display);
+    } else {
+      console.log('Recipe modal element not found');
     }
   }
 
   @action
   public hideRecipeDetails(): void {
+    console.log('hideRecipeDetails called');
     const modal = document.getElementById('recipe-details-modal');
     if (modal) {
-      modal.style.display = 'none';
+      console.log('Hiding recipe details modal');
+      modal.style.setProperty('display', 'none', 'important');
+      console.log('Modal display style set to:', modal.style.display);
+    } else {
+      console.log('Modal element not found');
     }
   }
 
@@ -442,6 +459,165 @@ export class Application {
       });
       
       stepsEl.innerHTML = stepsHTML;
+    }
+
+    // Setup pantry button after modal content is populated
+    this.setupPantryButton();
+  }
+
+  private setupGlobalModalHandlers(): void {
+    // Use event delegation for dynamic content
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      
+      // Handle pantry button clicks
+      if (target.id === 'btn-show-pantry') {
+        e.preventDefault();
+        console.log('Pantry button clicked via delegation');
+        this.showPantryStock();
+      }
+      
+      // Handle recipe details close button
+      if (target.id === 'recipe-details-close') {
+        e.preventDefault();
+        console.log('Recipe details close button clicked via delegation');
+        this.hideRecipeDetails();
+      }
+      
+      // Handle pantry stock close button
+      if (target.id === 'pantry-stock-close') {
+        e.preventDefault();
+        console.log('Pantry stock close button clicked via delegation');
+        this.hidePantryStock();
+      }
+    });
+  }
+
+  private setupPantryStockModal(): void {
+    const modal = document.getElementById('pantry-stock-modal');
+    const closeBtn = document.getElementById('pantry-stock-close');
+    
+    if (!modal || !closeBtn) {
+      console.error('Pantry stock modal elements not found');
+      return;
+    }
+
+    // Close modal when clicking close button
+    closeBtn.addEventListener('click', () => {
+      this.hidePantryStock();
+    });
+
+    // Close modal when clicking outside the content
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.hidePantryStock();
+      }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.style.display === 'flex') {
+        this.hidePantryStock();
+      }
+    });
+  }
+
+  private setupPantryButton(): void {
+    const showPantryBtn = document.getElementById('btn-show-pantry');
+    
+    console.log('Setting up pantry button:', !!showPantryBtn);
+    
+    if (showPantryBtn) {
+      // Remove any existing listeners - create bound function first
+      const boundHandler = () => {
+        console.log('Pantry button clicked');
+        this.showPantryStock();
+      };
+      
+      // Store the handler so we can remove it later if needed
+      (showPantryBtn as any)._pantryHandler = boundHandler;
+      
+      // Add new listener
+      showPantryBtn.addEventListener('click', boundHandler);
+    } else {
+      console.log('Pantry button not found in DOM');
+    }
+  }
+
+  @action
+  public showPantryStock(): void {
+    console.log('📦 Showing pantry stock');
+
+    // Update pantry stock display
+    this.populatePantryStockModal();
+
+    // Show modal
+    const modal = document.getElementById('pantry-stock-modal');
+    if (modal) {
+      console.log('Pantry modal found, showing');
+      modal.style.setProperty('display', 'flex', 'important');
+      console.log('Pantry modal display style set to:', modal.style.display);
+    } else {
+      console.log('Pantry modal not found');
+    }
+  }
+
+  @action
+  public hidePantryStock(): void {
+    console.log('Hiding pantry stock');
+    const modal = document.getElementById('pantry-stock-modal');
+    if (modal) {
+      modal.style.setProperty('display', 'none', 'important');
+    }
+  }
+
+  private populatePantryStockModal(): void {
+    const gridEl = document.getElementById('pantry-stock-grid');
+    if (!gridEl) return;
+
+    let stockHTML = '';
+    
+    // Get all pantry stock
+    const pantryStock = this._gameState.pantry.getAllStock();
+    
+    // Convert to array and sort by ingredient name
+    const stockItems = Object.entries(pantryStock).sort((a, b) => {
+      const nameA = a[1].ingredient?.name || a[0];
+      const nameB = b[1].ingredient?.name || b[0];
+      return nameA.localeCompare(nameB);
+    });
+
+    stockItems.forEach(([ingredientId, stockData]) => {
+      const ingredient = stockData.ingredient;
+      const amount = stockData.amount;
+      
+      if (ingredient) {
+        // Determine amount status for color coding
+        let amountClass = 'pantry-stock-amount';
+        if (amount === 0) {
+          amountClass += ' empty';
+        } else if (amount <= 5) {
+          amountClass += ' low';
+        }
+
+        stockHTML += `
+          <div class="pantry-stock-item">
+            <div class="pantry-stock-item-header">
+              <div class="pantry-stock-icon">${ingredient.icon}</div>
+              <div class="pantry-stock-name">${ingredient.name}</div>
+            </div>
+            <div class="${amountClass}">
+              ${amount} ${ingredient.unit}
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    if (stockHTML === '') {
+      gridEl.innerHTML = '<div class="pantry-stock-item"><div class="pantry-stock-name">No ingredients in pantry</div></div>';
+    } else {
+      gridEl.innerHTML = stockHTML;
     }
   }
 
@@ -589,7 +765,7 @@ export class Application {
     }
 
     // Remove from pantry
-    this._gameState.pantry.removeStock(ingredientId, amount);
+    this._gameState.pantry.removeIngredient(ingredientId, amount);
     
     // Add to baking counter
     const currentAmount = this._bakingCounter.get(ingredientId) || 0;
