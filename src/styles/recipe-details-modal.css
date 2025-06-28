@@ -2,6 +2,7 @@
 
 .recipe-details-modal {
   position: fixed;
+  pointer-events: auto;
   top: 0;
   left: 0;
   width: 100vw;
@@ -228,6 +229,7 @@
 /* Pantry Stock Modal */
 .pantry-stock-modal {
   position: fixed;
+  pointer-events: auto;
   top: 0;
   left: 0;
   width: 100vw;
