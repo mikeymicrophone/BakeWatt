@@ -1,0 +1,163 @@
+/* Ingredient Transfer Panel Styles */
+
+.transfer-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 300px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+  font-family: inherit;
+  pointer-events: auto;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.transfer-info p {
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.ingredient-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ingredient-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #007acc;
+}
+
+.ingredient-card.selected {
+  border-color: #ff6f61;
+  background: rgba(255, 111, 97, 0.1);
+}
+
+.ingredient-card .icon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.ingredient-card .name {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.ingredient-card .amount {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.ingredient-card .insufficient {
+  color: #ff6f61;
+}
+
+.ingredient-card .sufficient {
+  color: #4caf50;
+}
+
+.empty-counter {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  grid-column: 1 / -1;
+}
+
+.empty-counter small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.transfer-controls {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.ingredient-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.ingredient-info span:first-child {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.ingredient-info span:last-child {
+  font-size: 20px;
+}
+
+.transfer-amounts {
+  margin-bottom: 15px;
+}
+
+.amount-display {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.amount-display label {
+  color: #ccc;
+  margin-right: 8px;
+}
+
+.amount-display span {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.subtraction-problem {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.subtraction-problem div {
+  font-family: monospace;
+  font-size: 14px;
+  color: #ffeb3b;
+}
+
+.transfer-result-display {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.transfer-result-display.success {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid #4caf50;
+  color: #4caf50;
+}
+
+.transfer-result-display.error {
+  background: rgba(255, 111, 97, 0.2);
+  border: 1px solid #ff6f61;
+  color: #ff6f61;
+}
