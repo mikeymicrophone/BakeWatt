@@ -13,6 +13,7 @@ import { testIngredientSystem } from '@/domain/inventory/demo';
 import { testRecipeSystem } from '@/domain/baking/demo';
 import { GameState, GameStateFactory } from '@/domain/progression';
 import { MultiStepRecipeLibrary } from '@/domain/baking';
+import { StorageService } from '@/core/storage/StorageService';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -42,8 +43,8 @@ export class Application {
   private zoomCallback: ((level: number) => void) | null = null;
 
   constructor() {
-    // Initialize game state first
-    this._gameState = GameStateFactory.createInitialGameState();
+    // Initialize game state first - try to load saved state
+    this._gameState = this.initializeGameState();
     
     this.sceneManager = container.get<SceneManager>(SceneManager);
     this.zoomManager = container.get<CameraZoomManager>(CameraZoomManager);
@@ -53,6 +54,24 @@ export class Application {
     this.recipeService = container.get<RecipeService>(RecipeService);
     this.recipeScalingScene = container.get<RecipeScalingScene>(RecipeScalingScene);
     this.subtractionMathScene = container.get<SubtractionMathScene>(SubtractionMathScene);
+  }
+
+  private initializeGameState(): GameState {
+    // Try to load saved game state
+    const savedData = StorageService.loadGameState();
+    
+    if (savedData) {
+      // Create initial state and apply saved data
+      const gameState = GameStateFactory.createInitialGameState();
+      StorageService.applySaveData(gameState, savedData);
+      
+      console.log('🔄 Loaded saved game state');
+      return gameState;
+    } else {
+      // No saved data, create fresh state
+      console.log('🆕 Starting new game');
+      return GameStateFactory.createInitialGameState();
+    }
   }
 
   @action
@@ -108,7 +127,31 @@ export class Application {
     testIngredientSystem();
     testRecipeSystem();
     
+    // Set up auto-save functionality
+    this.setupAutoSave();
+    
     this._isInitialized = true;
+  }
+
+  private setupAutoSave(): void {
+    // Auto-save every 30 seconds
+    setInterval(() => {
+      if (this._isInitialized) {
+        StorageService.autoSave(this._gameState);
+      }
+    }, 30000);
+
+    // Save on page unload/refresh
+    window.addEventListener('beforeunload', () => {
+      StorageService.saveGameState(this._gameState);
+    });
+
+    // Save on tab visibility change (user switches tabs)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this._isInitialized) {
+        StorageService.saveGameState(this._gameState);
+      }
+    });
   }
 
   public get gameState(): GameState {
@@ -1251,6 +1294,9 @@ export class Application {
       this.showSalesNotification(`Added ${totalPackages} packages to store!`);
     }
     
+    // Save game state after production
+    StorageService.saveGameState(this._gameState);
+    
     this.hideProductionInterface();
     this.cancelCooking();
   }
@@ -1298,6 +1344,8 @@ export class Application {
     const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
     const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;
     const recipeShopBtn = document.getElementById('btn-recipe-shop');
+    const saveGameBtn = document.getElementById('btn-save-game');
+    const loadGameBtn = document.getElementById('btn-load-game');
 
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
@@ -1316,6 +1364,18 @@ export class Application {
     if (recipeShopBtn) {
       recipeShopBtn.addEventListener('click', () => {
         this.openRecipeShop();
+      });
+    }
+
+    if (saveGameBtn) {
+      saveGameBtn.addEventListener('click', () => {
+        this.manualSaveGame();
+      });
+    }
+
+    if (loadGameBtn) {
+      loadGameBtn.addEventListener('click', () => {
+        this.showLoadGameDialog();
       });
     }
   }
@@ -1639,6 +1699,9 @@ export class Application {
     
     alert(`🎉 Recipe purchased successfully!\n\nYou spent ${price} Baker Coins and unlocked a new recipe!\n\n(This is a demo - recipe purchasing system would integrate with the game's economy in the full implementation)`);
     
+    // Save game state after purchase
+    StorageService.saveGameState(this._gameState);
+    
     // Close the shop modal
     const modal = document.getElementById('recipe-shop-modal');
     if (modal) modal.remove();
@@ -1846,6 +1909,48 @@ export class Application {
       setTimeout(() => {
         notification.classList.remove('show');
       }, 3000);
+    }
+  }
+
+  @action
+  private manualSaveGame(): void {
+    console.log('💾 Manual save requested');
+    const success = StorageService.saveGameState(this._gameState);
+    
+    if (success) {
+      // Show detailed success message
+      const saveInfo = StorageService.getSaveInfo();
+      const message = saveInfo 
+        ? `Game saved successfully!\n\nLevel: ${saveInfo.level}\nCoins: ${saveInfo.coins}\nTime: ${saveInfo.lastSaved.toLocaleString()}`
+        : 'Game saved successfully!';
+      
+      alert(message);
+    } else {
+      alert('❌ Failed to save game. Please try again.');
+    }
+  }
+
+  @action
+  private showLoadGameDialog(): void {
+    console.log('📂 Load game requested');
+    
+    if (!StorageService.hasSaveData()) {
+      alert('No saved game found. Start playing to create a save file!');
+      return;
+    }
+    
+    const saveInfo = StorageService.getSaveInfo();
+    if (!saveInfo) {
+      alert('❌ Error reading save file. The save data may be corrupted.');
+      return;
+    }
+    
+    const confirmMessage = `Load saved game?\n\nLevel: ${saveInfo.level}\nCoins: ${saveInfo.coins}\nLast saved: ${saveInfo.lastSaved.toLocaleString()}\n\n⚠️ This will replace your current progress!`;
+    
+    if (confirm(confirmMessage)) {
+      // Reload the page to trigger fresh game state load
+      console.log('🔄 Reloading game to load saved state');
+      window.location.reload();
     }
   }
 
