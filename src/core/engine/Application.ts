@@ -21,6 +21,11 @@ export class Application {
   @observable private _currentRecipe: any | null = null;
   @observable private _currentStep: number = 0;
   @observable private _bakingCounter: Map<string, number> = new Map();
+  @observable private _productionData = {
+    initialItems: 2,
+    piecesPerItem: 24,
+    piecesPerPackage: 4
+  };
   
   private sceneManager: SceneManager;
   private zoomManager: CameraZoomManager;
@@ -67,6 +72,7 @@ export class Application {
     this.setupRecipeDetailsModal();
     this.setupPantryStockModal();
     this.setupCookingInterface();
+    this.setupProductionInterface();
     this.populateRecipeCollection();
     
     // Make app instance globally accessible early
@@ -873,8 +879,9 @@ export class Application {
   @action
   private completeCooking(): void {
     console.log(`🎉 Recipe completed: ${this._currentRecipe?.name}`);
-    alert(`Congratulations! You've successfully made ${this._currentRecipe?.name}! 🎉`);
-    this.cancelCooking();
+    
+    // Show production interface instead of just alerting
+    this.showProductionInterface();
   }
 
   @action
@@ -972,6 +979,216 @@ export class Application {
     
     resultDiv.textContent = resultText;
     resultDiv.style.display = 'block';
+  }
+
+  private setupProductionInterface(): void {
+    const finishBtn = document.getElementById('btn-finish-production');
+    const backBtn = document.getElementById('btn-back-to-cooking');
+    const cuttingSlider = document.getElementById('cutting-slider') as HTMLInputElement;
+    const packagingSlider = document.getElementById('packaging-slider') as HTMLInputElement;
+
+    if (finishBtn) {
+      finishBtn.addEventListener('click', () => {
+        this.finishProduction();
+      });
+    }
+
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        this.hideProductionInterface();
+      });
+    }
+
+    if (cuttingSlider) {
+      cuttingSlider.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        this.updateCuttingAmount(value);
+      });
+    }
+
+    if (packagingSlider) {
+      packagingSlider.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        this.updatePackagingAmount(value);
+      });
+    }
+  }
+
+  @action
+  private showProductionInterface(): void {
+    console.log('🏭 Showing production interface');
+    
+    // Hide cooking panel
+    const cookingPanel = document.getElementById('cooking-step-panel');
+    if (cookingPanel) {
+      cookingPanel.style.display = 'none';
+    }
+
+    // Update production content
+    this.populateProductionInterface();
+
+    // Show production panel
+    const productionPanel = document.getElementById('production-panel');
+    if (productionPanel) {
+      productionPanel.style.display = 'block';
+    }
+  }
+
+  @action
+  private hideProductionInterface(): void {
+    const productionPanel = document.getElementById('production-panel');
+    if (productionPanel) {
+      productionPanel.style.display = 'none';
+    }
+    this.switchToTab('recipes');
+  }
+
+  private populateProductionInterface(): void {
+    if (!this._currentRecipe) return;
+
+    // Update header with current recipe
+    const iconEl = document.getElementById('production-icon');
+    const subtitleEl = document.getElementById('production-subtitle');
+
+    if (iconEl) iconEl.textContent = this._currentRecipe.icon;
+    if (subtitleEl) {
+      subtitleEl.textContent = `Your ${this._currentRecipe.name} is ready! Now let's package it.`;
+    }
+
+    // Update all production steps
+    this.updateProductionStep();
+  }
+
+  @action
+  private updateCuttingAmount(value: number): void {
+    this._productionData.piecesPerItem = value;
+    this.updateProductionStep();
+  }
+
+  @action
+  private updatePackagingAmount(value: number): void {
+    this._productionData.piecesPerPackage = value;
+    this.updateProductionStep();
+  }
+
+  private updateProductionStep(): void {
+    const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
+    const totalPieces = initialItems * piecesPerItem;
+    const totalPackages = Math.floor(totalPieces / piecesPerPackage);
+
+    // Update slider values
+    const cuttingValue = document.getElementById('cutting-value');
+    const packagingValue = document.getElementById('packaging-value');
+    
+    if (cuttingValue) cuttingValue.textContent = piecesPerItem.toString();
+    if (packagingValue) packagingValue.textContent = piecesPerPackage.toString();
+
+    // Update math displays
+    const initialMath = document.getElementById('initial-math');
+    const cuttingMath = document.getElementById('cutting-math');
+    const packagingMath = document.getElementById('packaging-math');
+    const totalMathEq = document.getElementById('total-math-equation');
+
+    if (initialMath) initialMath.textContent = `Recipe produces ${initialItems} items`;
+    if (cuttingMath) cuttingMath.textContent = `${initialItems} items × ${piecesPerItem} pieces each = ${totalPieces} pieces`;
+    if (packagingMath) packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages`;
+    if (totalMathEq) totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages`;
+
+    // Update totals
+    const initialTotal = document.getElementById('initial-total');
+    const cuttingTotal = document.getElementById('cutting-total');
+    const packagingTotal = document.getElementById('packaging-total');
+
+    if (initialTotal) initialTotal.textContent = `Total: ${initialItems} items`;
+    if (cuttingTotal) cuttingTotal.textContent = `Total: ${totalPieces} pieces`;
+    if (packagingTotal) packagingTotal.textContent = `Total: ${totalPackages} packages`;
+
+    // Update visual representations
+    this.updateProductionVisuals();
+  }
+
+  private updateProductionVisuals(): void {
+    const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
+    const totalPieces = initialItems * piecesPerItem;
+    const totalPackages = Math.floor(totalPieces / piecesPerPackage);
+    const recipeIcon = this._currentRecipe?.icon || '🍪';
+
+    // Step 1: Initial items
+    const initialItemsEl = document.getElementById('initial-items');
+    if (initialItemsEl) {
+      let itemsHTML = '';
+      for (let i = 0; i < initialItems; i++) {
+        itemsHTML += `<div class="visual-item pan">${recipeIcon}</div>`;
+      }
+      initialItemsEl.innerHTML = itemsHTML;
+    }
+
+    // Step 2: Cutting visualization
+    const itemsBeforeCutting = document.getElementById('items-before-cutting');
+    const piecesAfterCutting = document.getElementById('pieces-after-cutting');
+    
+    if (itemsBeforeCutting) {
+      let itemsHTML = '';
+      for (let i = 0; i < initialItems; i++) {
+        itemsHTML += `<div class="visual-item pan">${recipeIcon}</div>`;
+      }
+      itemsBeforeCutting.innerHTML = itemsHTML;
+    }
+
+    if (piecesAfterCutting) {
+      let piecesHTML = '';
+      const maxDisplayPieces = Math.min(totalPieces, 24); // Limit display for performance
+      for (let i = 0; i < maxDisplayPieces; i++) {
+        piecesHTML += `<div class="visual-item piece">🔸</div>`;
+      }
+      if (totalPieces > maxDisplayPieces) {
+        piecesHTML += `<div class="visual-item piece">+${totalPieces - maxDisplayPieces}</div>`;
+      }
+      piecesAfterCutting.innerHTML = piecesHTML;
+    }
+
+    // Step 3: Packaging visualization
+    const piecesBeforePackaging = document.getElementById('pieces-before-packaging');
+    const packagesAfterPackaging = document.getElementById('packages-after-packaging');
+
+    if (piecesBeforePackaging) {
+      let piecesHTML = '';
+      const maxDisplayPieces = Math.min(totalPieces, 24);
+      for (let i = 0; i < maxDisplayPieces; i++) {
+        piecesHTML += `<div class="visual-item piece">🔸</div>`;
+      }
+      if (totalPieces > maxDisplayPieces) {
+        piecesHTML += `<div class="visual-item piece">+${totalPieces - maxDisplayPieces}</div>`;
+      }
+      piecesBeforePackaging.innerHTML = piecesHTML;
+    }
+
+    if (packagesAfterPackaging) {
+      let packagesHTML = '';
+      const maxDisplayPackages = Math.min(totalPackages, 12);
+      for (let i = 0; i < maxDisplayPackages; i++) {
+        packagesHTML += `<div class="visual-item package">📦</div>`;
+      }
+      if (totalPackages > maxDisplayPackages) {
+        packagesHTML += `<div class="visual-item package">+${totalPackages - maxDisplayPackages}</div>`;
+      }
+      packagesAfterPackaging.innerHTML = packagesHTML;
+    }
+  }
+
+  @action
+  private finishProduction(): void {
+    console.log('✅ Production finished');
+    
+    // Here you could add the produced items to inventory
+    // For now, just show a success message
+    const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
+    const totalPackages = Math.floor(initialItems * piecesPerItem / piecesPerPackage);
+    
+    alert(`Great job! You produced ${totalPackages} packages of ${this._currentRecipe?.name}! 🎉`);
+    
+    this.hideProductionInterface();
+    this.cancelCooking();
   }
 
   public destroy(): void {

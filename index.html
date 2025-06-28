@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/src/styles/recipe-collection.css">
   <link rel="stylesheet" href="/src/styles/recipe-details-modal.css">
   <link rel="stylesheet" href="/src/styles/cooking-step.css">
+  <link rel="stylesheet" href="/src/styles/production.css">
 </head>
 <body>
   <div id="app">
@@ -264,6 +265,142 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Production Panel -->
+      <div class="production-panel" id="production-panel">
+        <div class="production-header">
+          <h1 class="production-title">
+            <span id="production-icon">🍪</span>
+            <span>Production & Packaging</span>
+          </h1>
+          <p class="production-subtitle" id="production-subtitle">
+            Your Chocolate Chip Cookies are ready! Now let's package them.
+          </p>
+        </div>
+
+        <div class="production-flow" id="production-flow">
+          <!-- Step 1: Initial Production -->
+          <div class="production-step initial">
+            <div class="step-header">
+              <h3 class="step-title">
+                <span class="step-icon">🍪</span>
+                <span>Baked Items</span>
+              </h3>
+              <div class="step-math" id="initial-math">Recipe produces 2 items</div>
+            </div>
+            
+            <div class="step-visualization">
+              <div class="visual-group">
+                <div class="visual-items grid-2" id="initial-items">
+                  <!-- Will be populated dynamically -->
+                </div>
+                <div class="visual-label">Finished Items</div>
+              </div>
+            </div>
+            
+            <div class="step-total" id="initial-total">Total: 2 items</div>
+          </div>
+
+          <!-- Step 2: Subdivision (Cutting) -->
+          <div class="production-step subdivision">
+            <div class="step-header">
+              <h3 class="step-title">
+                <span class="step-icon">🔪</span>
+                <span>Cut into Pieces</span>
+              </h3>
+              <div class="step-math" id="cutting-math">2 items × 24 pieces each = 48 pieces</div>
+            </div>
+            
+            <div class="step-controls">
+              <div class="slider-control">
+                <label class="slider-label">Pieces per item:</label>
+                <input type="range" class="production-slider" id="cutting-slider" 
+                       min="1" max="50" value="24" step="1">
+                <span class="slider-value" id="cutting-value">24</span>
+              </div>
+            </div>
+
+            <div class="step-visualization">
+              <div class="visual-group">
+                <div class="visual-items grid-2" id="items-before-cutting">
+                  <!-- Will be populated dynamically -->
+                </div>
+                <div class="visual-label">Items</div>
+              </div>
+              
+              <div class="flow-arrow">→</div>
+              
+              <div class="visual-group">
+                <div class="visual-items grid-8" id="pieces-after-cutting">
+                  <!-- Will be populated dynamically -->
+                </div>
+                <div class="visual-label">Individual Pieces</div>
+              </div>
+            </div>
+            
+            <div class="step-total" id="cutting-total">Total: 48 pieces</div>
+          </div>
+
+          <!-- Step 3: Combination (Packaging) -->
+          <div class="production-step combination">
+            <div class="step-header">
+              <h3 class="step-title">
+                <span class="step-icon">🎁</span>
+                <span>Package into Bundles</span>
+              </h3>
+              <div class="step-math" id="packaging-math">48 pieces ÷ 4 per package = 12 packages</div>
+            </div>
+            
+            <div class="step-controls">
+              <div class="slider-control">
+                <label class="slider-label">Pieces per package:</label>
+                <input type="range" class="production-slider" id="packaging-slider" 
+                       min="1" max="12" value="4" step="1">
+                <span class="slider-value" id="packaging-value">4</span>
+              </div>
+            </div>
+
+            <div class="step-visualization">
+              <div class="visual-group">
+                <div class="visual-items grid-8" id="pieces-before-packaging">
+                  <!-- Will be populated dynamically -->
+                </div>
+                <div class="visual-label">Individual Pieces</div>
+              </div>
+              
+              <div class="flow-arrow">→</div>
+              
+              <div class="visual-group">
+                <div class="visual-items grid-6" id="packages-after-packaging">
+                  <!-- Will be populated dynamically -->
+                </div>
+                <div class="visual-label">Packages</div>
+              </div>
+            </div>
+            
+            <div class="step-total" id="packaging-total">Total: 12 packages</div>
+          </div>
+
+          <!-- Mathematical Relationship Summary -->
+          <div class="mathematical-relationship">
+            <div class="math-equation" id="total-math-equation">
+              2 items × 24 pieces/item ÷ 4 pieces/package = 12 packages
+            </div>
+            <div class="math-explanation">
+              Understanding multiplication and division through production
+            </div>
+          </div>
+        </div>
+
+        <div class="production-actions">
+          <button class="btn-production primary" id="btn-finish-production">
+            Finish & Store Products
+          </button>
+          <button class="btn-production secondary" id="btn-back-to-cooking">
+            Back to Cooking
+          </button>
         </div>
       </div>
     </div>
