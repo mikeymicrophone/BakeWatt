@@ -467,13 +467,483 @@
       width: 100%;
       height: 100%;
     }
+
+    /* Tab Navigation Styles */
+    .tab-navigation {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 1001;
+      pointer-events: auto;
+    }
+
+    .tab-button {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 10px;
+      margin: 4px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-button:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-button.active {
+      color: white;
+      background: #007acc;
+      box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+    }
+
+    .tab-button .tab-icon {
+      font-size: 16px;
+    }
+
+    /* Recipe Collection Panel */
+    .recipe-collection-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      bottom: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      pointer-events: auto;
+      display: none;
+    }
+
+    .recipe-collection-panel h2 {
+      margin: 0 0 20px 0;
+      color: #fff;
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .recipe-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .recipe-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .recipe-card:hover {
+      border-color: #007acc;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .recipe-card.selected {
+      border-color: #ff6f61;
+      background: rgba(255, 111, 97, 0.1);
+    }
+
+    .recipe-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .recipe-icon {
+      font-size: 32px;
+    }
+
+    .recipe-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
+    }
+
+    .recipe-meta {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .recipe-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .recipe-description {
+      color: #ddd;
+      font-size: 14px;
+      line-height: 1.4;
+      margin-bottom: 15px;
+    }
+
+    .recipe-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+
+    .recipe-tag {
+      background: rgba(0, 122, 204, 0.2);
+      color: #007acc;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .recipe-steps {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 15px;
+    }
+
+    .recipe-steps h4 {
+      margin: 0 0 10px 0;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .step-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .step-item {
+      padding: 8px 0;
+      color: #ddd;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .step-item:last-child {
+      border-bottom: none;
+    }
+
+    .step-number {
+      color: #007acc;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .recipe-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-recipe {
+      flex: 1;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-recipe.primary {
+      background: #007acc;
+      color: white;
+    }
+
+    .btn-recipe.primary:hover {
+      background: #005a9e;
+      transform: translateY(-1px);
+    }
+
+    .btn-recipe.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ddd;
+    }
+
+    .btn-recipe.secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Recipe Details Modal */
+    .recipe-details-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .recipe-details-content {
+      background: rgba(0, 0, 0, 0.95);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+    }
+
+    .recipe-details-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .recipe-details-icon {
+      font-size: 48px;
+    }
+
+    .recipe-details-title {
+      color: #fff;
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .recipe-details-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .recipe-details-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+
+    .recipe-details-meta {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .recipe-details-meta span {
+      background: rgba(0, 122, 204, 0.1);
+      color: #007acc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .recipe-details-description {
+      color: #ddd;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+
+    .recipe-ingredients-section {
+      margin-bottom: 30px;
+    }
+
+    .recipe-ingredients-section h3 {
+      color: #fff;
+      font-size: 20px;
+      margin: 0 0 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ingredients-by-step {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .step-ingredients-header {
+      background: rgba(0, 122, 204, 0.1);
+      color: #007acc;
+      padding: 12px 15px;
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .step-ingredients-list {
+      padding: 15px;
+    }
+
+    .ingredient-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .ingredient-item:last-child {
+      border-bottom: none;
+    }
+
+    .ingredient-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .ingredient-amount {
+      color: #4caf50;
+      font-weight: 600;
+    }
+
+    .ingredient-amount.flexible {
+      color: #ff9800;
+    }
+
+    .ingredient-notes {
+      font-size: 12px;
+      color: #ccc;
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .recipe-steps-section {
+      margin-bottom: 25px;
+    }
+
+    .recipe-steps-section h3 {
+      color: #fff;
+      font-size: 20px;
+      margin: 0 0 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .detailed-step {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-left: 4px solid #007acc;
+    }
+
+    .detailed-step-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .detailed-step-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
+    }
+
+    .detailed-step-time {
+      font-size: 12px;
+      color: #007acc;
+      font-weight: 500;
+    }
+
+    .detailed-step-description {
+      color: #ccc;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .detailed-step-instructions {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .detailed-step-instructions li {
+      color: #ddd;
+      font-size: 14px;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .detailed-step-instructions li:before {
+      content: "•";
+      color: #007acc;
+      font-weight: bold;
+      position: absolute;
+      left: 0;
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="three-container"></div>
     <div id="ui-overlay">
-      <div class="ui-panel">
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <button class="tab-button active" id="math-tab">
+          <span class="tab-icon">🔢</span>
+          <span>Math Practice</span>
+        </button>
+        <button class="tab-button" id="transfer-tab">
+          <span class="tab-icon">📦</span>
+          <span>Ingredient Transfer</span>
+        </button>
+        <button class="tab-button" id="recipes-tab">
+          <span class="tab-icon">📚</span>
+          <span>Recipe Collection</span>
+        </button>
+      </div>
+
+      <!-- Math Practice Panel -->
+      <div class="ui-panel" id="math-panel">
         <div class="input-group">
           <label for="factor1">First Number:</label>
           <input type="number" id="factor1" min="1" max="20" value="4">
@@ -485,9 +955,6 @@
         <div class="button-group">
           <button class="btn-visualize" id="visualize-btn">Show Cubes</button>
           <button class="btn-calculate" id="calculate-btn">Show Result</button>
-        </div>
-        <div class="mode-switch">
-          <button class="btn-secondary" id="transfer-mode-btn">Try Transfer Mode 📦</button>
         </div>
         <div class="zoom-control">
           <label for="zoom-slider">Zoom:</label>
@@ -536,7 +1003,7 @@
       </div>
       
       <!-- Ingredient Transfer Panel -->
-      <div class="transfer-panel" style="display: none;">
+      <div class="transfer-panel" id="transfer-panel" style="display: none;">
         <h3>📦 Pantry Transfer</h3>
         <div class="transfer-info">
           <p>Move ingredients from pantry to baking counter using subtraction!</p>
@@ -586,9 +1053,48 @@
           </div>
           <div id="transfer-result" class="transfer-result-display" style="display: none;"></div>
         </div>
+      </div>
+
+      <!-- Recipe Collection Panel -->
+      <div class="recipe-collection-panel" id="recipe-collection-panel">
+        <h2>📚 Recipe Collection</h2>
         
-        <div class="button-group">
-          <button class="btn-secondary" id="back-from-transfer-btn">Back to Basic Math</button>
+        <div class="recipe-grid" id="recipe-grid">
+          <!-- Will be populated dynamically with recipes -->
+        </div>
+      </div>
+
+      <!-- Recipe Details Modal -->
+      <div class="recipe-details-modal" id="recipe-details-modal">
+        <div class="recipe-details-content">
+          <button class="recipe-details-close" id="recipe-details-close">×</button>
+          
+          <div class="recipe-details-header">
+            <div class="recipe-details-icon" id="recipe-details-icon">🍪</div>
+            <h1 class="recipe-details-title" id="recipe-details-title">Recipe Name</h1>
+          </div>
+          
+          <div class="recipe-details-meta" id="recipe-details-meta">
+            <!-- Will be populated dynamically -->
+          </div>
+          
+          <div class="recipe-details-description" id="recipe-details-description">
+            Recipe description will appear here
+          </div>
+          
+          <div class="recipe-ingredients-section">
+            <h3>🧄 Ingredients</h3>
+            <div id="recipe-details-ingredients">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+          
+          <div class="recipe-steps-section">
+            <h3>📋 Instructions</h3>
+            <div id="recipe-details-steps">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
         </div>
       </div>
     </div>

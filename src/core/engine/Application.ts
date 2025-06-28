@@ -12,10 +12,12 @@ import { container } from '@/shared/container';
 import { testIngredientSystem } from '@/domain/inventory/demo';
 import { testRecipeSystem } from '@/domain/baking/demo';
 import { GameState, GameStateFactory } from '@/domain/progression';
+import { MultiStepRecipeLibrary } from '@/domain/baking';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
   @observable private _gameState: GameState;
+  @observable private _currentTab: string = 'math';
   
   private sceneManager: SceneManager;
   private zoomManager: CameraZoomManager;
@@ -58,6 +60,9 @@ export class Application {
     this.gestureHandler.mount(threeContainer);
     this.setupUI();
     this.setupZoomSync();
+    this.setupTabNavigation();
+    this.setupRecipeDetailsModal();
+    this.populateRecipeCollection();
     
     // Initialize game state
     console.log('🎮 BakeWatt Game State Initialized!');
@@ -85,6 +90,9 @@ export class Application {
     testRecipeSystem();
     
     this._isInitialized = true;
+    
+    // Make app instance globally accessible for recipe details
+    (window as any).appInstance = this;
   }
 
   public get gameState(): GameState {
@@ -98,8 +106,6 @@ export class Application {
     const factor1Input = document.getElementById('factor1') as HTMLInputElement;
     const factor2Input = document.getElementById('factor2') as HTMLInputElement;
     const resultDiv = document.getElementById('result') as HTMLDivElement;
-    const transferModeBtn = document.getElementById('transfer-mode-btn') as HTMLButtonElement;
-    const backFromTransferBtn = document.getElementById('back-from-transfer-btn') as HTMLButtonElement;
     
     // Common UI elements
     this.zoomSlider = document.getElementById('zoom-slider') as HTMLInputElement;
@@ -132,25 +138,6 @@ export class Application {
       }
     });
 
-    // Mode switching handlers
-    if (transferModeBtn) {
-      transferModeBtn.addEventListener('click', () => {
-        console.log('🎯 Transfer Mode button clicked');
-        try {
-          this.switchToTransferMode();
-          console.log('✅ Switched to transfer mode successfully');
-        } catch (error) {
-          console.error('❌ Error switching to transfer mode:', error);
-          alert('Error switching to transfer mode: ' + (error instanceof Error ? error.message : String(error)));
-        }
-      });
-    }
-
-    if (backFromTransferBtn) {
-      backFromTransferBtn.addEventListener('click', () => {
-        this.switchToBasicMode();
-      });
-    }
 
 
     // Handle zoom slider
@@ -174,40 +161,282 @@ export class Application {
   }
 
 
-  @action
-  private switchToTransferMode(): void {
-    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
-    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
-    
-    if (basicPanel) basicPanel.style.display = 'none';
-    if (transferPanel) transferPanel.style.display = 'block';
-    
-    // Clear any existing cubes from previous calculations
-    if (this.cubeGrid) {
-      this.cubeGrid.destroy();
-      this.cubeGrid = null;
+  private setupTabNavigation(): void {
+    const mathTab = document.getElementById('math-tab') as HTMLButtonElement;
+    const transferTab = document.getElementById('transfer-tab') as HTMLButtonElement;
+    const recipesTab = document.getElementById('recipes-tab') as HTMLButtonElement;
+
+    if (!mathTab || !transferTab || !recipesTab) {
+      throw new Error('Tab navigation elements not found');
     }
-    
-    // Pass gameState to the scene
-    this.subtractionMathScene.setGameState(this._gameState);
-    this.subtractionMathScene.show();
+
+    mathTab.addEventListener('click', () => this.switchToTab('math'));
+    transferTab.addEventListener('click', () => this.switchToTab('transfer'));
+    recipesTab.addEventListener('click', () => this.switchToTab('recipes'));
   }
 
   @action
-  private switchToBasicMode(): void {
-    const basicPanel = document.querySelector('.ui-panel') as HTMLElement;
-    const transferPanel = document.querySelector('.transfer-panel') as HTMLElement;
+  private switchToTab(tabName: string): void {
+    console.log(`🎯 Switching to ${tabName} tab`);
     
-    if (basicPanel) basicPanel.style.display = 'block';
-    if (transferPanel) transferPanel.style.display = 'none';
+    // Update current tab
+    this._currentTab = tabName;
     
-    // Clear any existing cubes from previous calculations
+    // Update tab buttons
+    const allTabs = document.querySelectorAll('.tab-button');
+    allTabs.forEach(tab => tab.classList.remove('active'));
+    
+    const activeTab = document.getElementById(`${tabName}-tab`);
+    if (activeTab) activeTab.classList.add('active');
+    
+    // Show/hide panels
+    const mathPanel = document.getElementById('math-panel');
+    const transferPanel = document.getElementById('transfer-panel');
+    const recipePanel = document.getElementById('recipe-collection-panel');
+    
+    if (mathPanel) mathPanel.style.display = tabName === 'math' ? 'block' : 'none';
+    if (transferPanel) transferPanel.style.display = tabName === 'transfer' ? 'block' : 'none';
+    if (recipePanel) recipePanel.style.display = tabName === 'recipes' ? 'block' : 'none';
+    
+    // Clear any existing cubes when switching tabs
     if (this.cubeGrid) {
       this.cubeGrid.destroy();
       this.cubeGrid = null;
     }
     
-    this.subtractionMathScene.hide();
+    // Handle scene-specific logic
+    if (tabName === 'transfer') {
+      this.subtractionMathScene.setGameState(this._gameState);
+      this.subtractionMathScene.show();
+    } else {
+      this.subtractionMathScene.hide();
+    }
+  }
+
+  private populateRecipeCollection(): void {
+    const recipeGrid = document.getElementById('recipe-grid');
+    if (!recipeGrid) return;
+    
+    const recipes = MultiStepRecipeLibrary.getAllRecipes();
+    
+    recipeGrid.innerHTML = '';
+    
+    recipes.forEach(recipe => {
+      const recipeCard = document.createElement('div');
+      recipeCard.className = 'recipe-card';
+      
+      const overview = recipe.getOverview();
+      const stepsList = recipe.steps.map((step, index) => 
+        `<li class="step-item"><span class="step-number">${index + 1}.</span>${step.name}</li>`
+      ).join('');
+      
+      recipeCard.innerHTML = `
+        <div class="recipe-header">
+          <div class="recipe-icon">${recipe.icon}</div>
+          <h3 class="recipe-title">${recipe.name}</h3>
+        </div>
+        
+        <div class="recipe-meta">
+          <span>⏱️ ${overview.totalTime} min</span>
+          <span>👥 ${overview.servings} servings</span>
+          <span>📊 ${overview.difficulty}</span>
+        </div>
+        
+        <div class="recipe-description">
+          ${recipe.description}
+        </div>
+        
+        <div class="recipe-tags">
+          ${overview.tags.map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
+        </div>
+        
+        <div class="recipe-steps">
+          <h4>Steps (${overview.totalSteps})</h4>
+          <ul class="step-list">
+            ${stepsList}
+          </ul>
+        </div>
+        
+        <div class="recipe-actions">
+          <button class="btn-recipe primary" onclick="console.log('Start cooking ${recipe.name}')">
+            Start Cooking
+          </button>
+          <button class="btn-recipe secondary" data-recipe-id="${recipe.id}" onclick="window.appInstance.showRecipeDetails('${recipe.id}')">
+            View Details
+          </button>
+        </div>
+      `;
+      
+      recipeGrid.appendChild(recipeCard);
+    });
+  }
+
+  public get currentTab(): string {
+    return this._currentTab;
+  }
+
+  private setupRecipeDetailsModal(): void {
+    const modal = document.getElementById('recipe-details-modal');
+    const closeBtn = document.getElementById('recipe-details-close');
+    
+    if (!modal || !closeBtn) {
+      throw new Error('Recipe details modal elements not found');
+    }
+
+    // Close modal when clicking close button
+    closeBtn.addEventListener('click', () => {
+      this.hideRecipeDetails();
+    });
+
+    // Close modal when clicking outside the content
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.hideRecipeDetails();
+      }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.style.display === 'flex') {
+        this.hideRecipeDetails();
+      }
+    });
+  }
+
+  @action
+  public showRecipeDetails(recipeId: string): void {
+    const recipe = MultiStepRecipeLibrary.getRecipeById(recipeId);
+    if (!recipe) {
+      console.error(`Recipe not found: ${recipeId}`);
+      return;
+    }
+
+    console.log(`🍽️ Showing details for recipe: ${recipe.name}`);
+
+    // Update modal content
+    this.populateRecipeDetailsModal(recipe);
+
+    // Show modal
+    const modal = document.getElementById('recipe-details-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+  }
+
+  @action
+  public hideRecipeDetails(): void {
+    const modal = document.getElementById('recipe-details-modal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  private populateRecipeDetailsModal(recipe: any): void {
+    // Update header
+    const iconEl = document.getElementById('recipe-details-icon');
+    const titleEl = document.getElementById('recipe-details-title');
+    const metaEl = document.getElementById('recipe-details-meta');
+    const descriptionEl = document.getElementById('recipe-details-description');
+    const ingredientsEl = document.getElementById('recipe-details-ingredients');
+    const stepsEl = document.getElementById('recipe-details-steps');
+
+    if (iconEl) iconEl.textContent = recipe.icon;
+    if (titleEl) titleEl.textContent = recipe.name;
+    if (descriptionEl) descriptionEl.textContent = recipe.description;
+
+    // Update meta information
+    if (metaEl) {
+      const overview = recipe.getOverview();
+      metaEl.innerHTML = `
+        <span>⏱️ ${overview.totalTime} minutes</span>
+        <span>👥 ${overview.servings} servings</span>
+        <span>📊 ${overview.difficulty}</span>
+        <span>📋 ${overview.totalSteps} steps</span>
+        ${recipe.skillLevel ? `<span>🎯 ${recipe.skillLevel}</span>` : ''}
+      `;
+    }
+
+    // Populate ingredients by step
+    if (ingredientsEl) {
+      let ingredientsHTML = '';
+      
+      recipe.steps.forEach((step: any, index: number) => {
+        if (step.ingredients.length > 0) {
+          ingredientsHTML += `
+            <div class="ingredients-by-step">
+              <div class="step-ingredients-header">
+                Step ${index + 1}: ${step.name}
+              </div>
+              <div class="step-ingredients-list">
+          `;
+          
+          step.ingredients.forEach((flexIngredient: any) => {
+            const ingredient = flexIngredient.ingredient;
+            let amountDisplay = '';
+            let amountClass = 'ingredient-amount';
+            let notes = '';
+            
+            if (flexIngredient.isFixed) {
+              amountDisplay = `${flexIngredient.fixedAmount} ${ingredient.unit}`;
+            } else if (flexIngredient.range) {
+              amountClass += ' flexible';
+              const range = flexIngredient.range;
+              amountDisplay = `${range.min}-${range.max} ${ingredient.unit} (recommended: ${range.recommended})`;
+              if (flexIngredient.notes) {
+                notes = `<div class="ingredient-notes">${flexIngredient.notes}</div>`;
+              }
+            }
+            
+            ingredientsHTML += `
+              <div class="ingredient-item">
+                <div>
+                  <div class="ingredient-name">
+                    <span>${ingredient.icon}</span>
+                    <span>${ingredient.name}</span>
+                  </div>
+                  ${notes}
+                </div>
+                <div class="${amountClass}">${amountDisplay}</div>
+              </div>
+            `;
+          });
+          
+          ingredientsHTML += `
+              </div>
+            </div>
+          `;
+        }
+      });
+      
+      ingredientsEl.innerHTML = ingredientsHTML;
+    }
+
+    // Populate detailed steps
+    if (stepsEl) {
+      let stepsHTML = '';
+      
+      recipe.steps.forEach((step: any, index: number) => {
+        const instructionsList = step.instructions.map((instruction: string) => 
+          `<li>${instruction}</li>`
+        ).join('');
+        
+        stepsHTML += `
+          <div class="detailed-step">
+            <div class="detailed-step-header">
+              <h4 class="detailed-step-title">${index + 1}. ${step.name}</h4>
+              ${step.estimatedTime ? `<span class="detailed-step-time">⏱️ ${step.estimatedTime} min</span>` : ''}
+            </div>
+            ${step.description ? `<div class="detailed-step-description">${step.description}</div>` : ''}
+            <ul class="detailed-step-instructions">
+              ${instructionsList}
+            </ul>
+            ${step.temperature ? `<div class="detailed-step-description"><strong>Temperature:</strong> ${step.temperature}°F</div>` : ''}
+          </div>
+        `;
+      });
+      
+      stepsEl.innerHTML = stepsHTML;
+    }
   }
 
   private setupZoomSync(): void {
