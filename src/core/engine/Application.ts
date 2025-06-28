@@ -18,6 +18,9 @@ export class Application {
   @observable private _isInitialized: boolean = false;
   @observable private _gameState: GameState;
   @observable private _currentTab: string = 'math';
+  @observable private _currentRecipe: any | null = null;
+  @observable private _currentStep: number = 0;
+  @observable private _bakingCounter: Map<string, number> = new Map();
   
   private sceneManager: SceneManager;
   private zoomManager: CameraZoomManager;
@@ -62,6 +65,7 @@ export class Application {
     this.setupZoomSync();
     this.setupTabNavigation();
     this.setupRecipeDetailsModal();
+    this.setupCookingInterface();
     this.populateRecipeCollection();
     
     // Initialize game state
@@ -193,10 +197,12 @@ export class Application {
     const mathPanel = document.getElementById('math-panel');
     const transferPanel = document.getElementById('transfer-panel');
     const recipePanel = document.getElementById('recipe-collection-panel');
+    const cookingPanel = document.getElementById('cooking-step-panel');
     
     if (mathPanel) mathPanel.style.display = tabName === 'math' ? 'block' : 'none';
     if (transferPanel) transferPanel.style.display = tabName === 'transfer' ? 'block' : 'none';
     if (recipePanel) recipePanel.style.display = tabName === 'recipes' ? 'block' : 'none';
+    if (cookingPanel && tabName !== 'cooking') cookingPanel.style.display = 'none';
     
     // Clear any existing cubes when switching tabs
     if (this.cubeGrid) {
@@ -258,7 +264,7 @@ export class Application {
         </div>
         
         <div class="recipe-actions">
-          <button class="btn-recipe primary" onclick="console.log('Start cooking ${recipe.name}')">
+          <button class="btn-recipe primary" onclick="window.appInstance.startCooking('${recipe.id}')">
             Start Cooking
           </button>
           <button class="btn-recipe secondary" data-recipe-id="${recipe.id}" onclick="window.appInstance.showRecipeDetails('${recipe.id}')">
@@ -437,6 +443,280 @@ export class Application {
       
       stepsEl.innerHTML = stepsHTML;
     }
+  }
+
+  private setupCookingInterface(): void {
+    const cancelBtn = document.getElementById('btn-cancel-cooking');
+    const proceedBtn = document.getElementById('btn-proceed');
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        this.cancelCooking();
+      });
+    }
+
+    if (proceedBtn) {
+      proceedBtn.addEventListener('click', () => {
+        this.proceedToNextStep();
+      });
+    }
+  }
+
+  @action
+  public startCooking(recipeId: string): void {
+    const recipe = MultiStepRecipeLibrary.getRecipeById(recipeId);
+    if (!recipe) {
+      console.error(`Recipe not found: ${recipeId}`);
+      return;
+    }
+
+    console.log(`🍳 Starting cooking: ${recipe.name}`);
+    
+    this._currentRecipe = recipe;
+    this._currentStep = 1;
+    this._bakingCounter.clear();
+
+    // Show cooking interface
+    this.showCookingStep();
+  }
+
+  @action
+  private showCookingStep(): void {
+    if (!this._currentRecipe) return;
+
+    const currentStep = this._currentRecipe.getStep(this._currentStep);
+    if (!currentStep) return;
+
+    // Hide other panels
+    this.switchToTab('cooking');
+
+    // Update cooking step display
+    this.populateCookingStep(currentStep);
+
+    // Show cooking panel
+    const cookingPanel = document.getElementById('cooking-step-panel');
+    if (cookingPanel) {
+      cookingPanel.style.display = 'block';
+    }
+  }
+
+  private populateCookingStep(step: any): void {
+    // Update header
+    const iconEl = document.getElementById('cooking-step-icon');
+    const stepNameEl = document.getElementById('cooking-step-name');
+    const recipeNameEl = document.getElementById('cooking-recipe-name');
+    const stepTimeEl = document.getElementById('cooking-step-time');
+    const stepNumberEl = document.getElementById('cooking-step-number');
+
+    if (iconEl) iconEl.textContent = this._currentRecipe?.icon || '🍳';
+    if (stepNameEl) stepNameEl.textContent = `Step ${this._currentStep}: ${step.name}`;
+    if (recipeNameEl) recipeNameEl.textContent = this._currentRecipe?.name || '';
+    if (stepTimeEl) stepTimeEl.textContent = step.estimatedTime ? `⏱️ ${step.estimatedTime} min` : '';
+    if (stepNumberEl) stepNumberEl.textContent = `Step ${this._currentStep} of ${this._currentRecipe?.steps.length}`;
+
+    // Update instructions
+    const instructionsEl = document.getElementById('cooking-instructions');
+    if (instructionsEl) {
+      const instructionsHTML = step.instructions.map((instruction: string) =>
+        `<li>${instruction}</li>`
+      ).join('');
+      instructionsEl.innerHTML = instructionsHTML;
+    }
+
+    // Update ingredient zones
+    this.populateIngredientZones(step);
+
+    // Update baking counter
+    this.updateBakingCounter();
+
+    // Update proceed button state
+    this.updateProceedButton();
+  }
+
+  private populateIngredientZones(step: any): void {
+    const zonesEl = document.getElementById('ingredient-zones-list');
+    if (!zonesEl) return;
+
+    let zonesHTML = '';
+
+    step.ingredients.forEach((flexIngredient: any) => {
+      const ingredient = flexIngredient.ingredient;
+      const neededAmount = flexIngredient.isFixed ? 
+        flexIngredient.fixedAmount : 
+        flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
+      
+      const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
+      const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
+      const isTransferred = transferredAmount >= neededAmount;
+      const canTransfer = availableInPantry >= neededAmount && !isTransferred;
+
+      zonesHTML += `
+        <div class="ingredient-zone ${isTransferred ? 'transferred' : 'needed'}">
+          <div class="ingredient-zone-header">
+            <div class="ingredient-zone-name">
+              <span>${ingredient.icon}</span>
+              <span>${ingredient.name}</span>
+            </div>
+            <div class="ingredient-zone-amount">${neededAmount} ${ingredient.unit}</div>
+          </div>
+          <div class="ingredient-zone-status">
+            ${isTransferred ? 
+              '✅ Transferred to counter' : 
+              `Available: ${availableInPantry} ${ingredient.unit}`
+            }
+          </div>
+          <div class="ingredient-zone-transfer">
+            <button class="btn-transfer" 
+              ${canTransfer ? '' : 'disabled'} 
+              onclick="window.appInstance.transferIngredient('${ingredient.id}', ${neededAmount})">
+              ${isTransferred ? 'Transferred' : 'Transfer to Counter'}
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    zonesEl.innerHTML = zonesHTML;
+  }
+
+  @action
+  public transferIngredient(ingredientId: string, amount: number): void {
+    const availableInPantry = this._gameState.pantry.getStock(ingredientId);
+    
+    if (availableInPantry < amount) {
+      alert(`Not enough ${ingredientId} in pantry! Available: ${availableInPantry}`);
+      return;
+    }
+
+    // Remove from pantry
+    this._gameState.pantry.removeStock(ingredientId, amount);
+    
+    // Add to baking counter
+    const currentAmount = this._bakingCounter.get(ingredientId) || 0;
+    this._bakingCounter.set(ingredientId, currentAmount + amount);
+
+    console.log(`🔄 Transferred ${amount} ${ingredientId} to baking counter`);
+
+    // Update displays
+    const currentStep = this._currentRecipe?.getStep(this._currentStep);
+    if (currentStep) {
+      this.populateIngredientZones(currentStep);
+      this.updateBakingCounter();
+      this.updateProceedButton();
+    }
+  }
+
+  private updateBakingCounter(): void {
+    const counterEl = document.getElementById('baking-counter');
+    const gridEl = document.getElementById('baking-counter-grid');
+    
+    if (!counterEl || !gridEl) return;
+
+    if (this._bakingCounter.size === 0) {
+      gridEl.innerHTML = '<div class="baking-counter-empty">Transfer all ingredients here to proceed</div>';
+      counterEl.classList.remove('has-ingredients');
+    } else {
+      let counterHTML = '';
+      
+      this._bakingCounter.forEach((amount, ingredientId) => {
+        // Find ingredient in current step
+        const currentStep = this._currentRecipe?.getStep(this._currentStep);
+        const flexIngredient = currentStep?.ingredients.find((fi: any) => fi.ingredient.id === ingredientId);
+        
+        if (flexIngredient) {
+          const ingredient = flexIngredient.ingredient;
+          counterHTML += `
+            <div class="ingredient-card">
+              <div class="icon">${ingredient.icon}</div>
+              <div class="name">${ingredient.name}</div>
+              <div class="amount">${amount} ${ingredient.unit}</div>
+            </div>
+          `;
+        }
+      });
+      
+      gridEl.innerHTML = counterHTML;
+      counterEl.classList.add('has-ingredients');
+    }
+  }
+
+  private updateProceedButton(): void {
+    const proceedBtn = document.getElementById('btn-proceed');
+    const statusEl = document.getElementById('proceed-status');
+    
+    if (!proceedBtn || !statusEl) return;
+
+    const currentStep = this._currentRecipe?.getStep(this._currentStep);
+    if (!currentStep) return;
+
+    // Check if all required ingredients are transferred
+    let allTransferred = true;
+    
+    for (const flexIngredient of currentStep.ingredients) {
+      const ingredient = flexIngredient.ingredient;
+      const neededAmount = flexIngredient.isFixed ? 
+        flexIngredient.fixedAmount : 
+        flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
+      
+      const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
+      if (transferredAmount < neededAmount) {
+        allTransferred = false;
+        break;
+      }
+    }
+
+    if (allTransferred) {
+      proceedBtn.disabled = false;
+      statusEl.textContent = '✅ All ingredients ready! Click to proceed';
+      statusEl.className = 'proceed-status ready';
+    } else {
+      proceedBtn.disabled = true;
+      statusEl.textContent = 'Transfer all ingredients to proceed to next step';
+      statusEl.className = 'proceed-status waiting';
+    }
+  }
+
+  @action
+  public proceedToNextStep(): void {
+    if (!this._currentRecipe) return;
+
+    this._currentStep++;
+    
+    if (this._currentStep > this._currentRecipe.steps.length) {
+      // Recipe completed!
+      this.completeCooking();
+    } else {
+      // Clear baking counter for next step
+      this._bakingCounter.clear();
+      
+      // Show next step
+      this.showCookingStep();
+    }
+  }
+
+  @action
+  private completeCooking(): void {
+    console.log(`🎉 Recipe completed: ${this._currentRecipe?.name}`);
+    alert(`Congratulations! You've successfully made ${this._currentRecipe?.name}! 🎉`);
+    this.cancelCooking();
+  }
+
+  @action
+  public cancelCooking(): void {
+    console.log('❌ Cooking cancelled');
+    
+    this._currentRecipe = null;
+    this._currentStep = 0;
+    this._bakingCounter.clear();
+
+    // Hide cooking panel
+    const cookingPanel = document.getElementById('cooking-step-panel');
+    if (cookingPanel) {
+      cookingPanel.style.display = 'none';
+    }
+
+    // Return to recipes tab
+    this.switchToTab('recipes');
   }
 
   private setupZoomSync(): void {

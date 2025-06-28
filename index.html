@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/src/styles/transfer-panel.css">
   <link rel="stylesheet" href="/src/styles/recipe-collection.css">
   <link rel="stylesheet" href="/src/styles/recipe-details-modal.css">
+  <link rel="stylesheet" href="/src/styles/cooking-step.css">
 </head>
 <body>
   <div id="app">
@@ -182,6 +183,64 @@
             <h3>📋 Instructions</h3>
             <div id="recipe-details-steps">
               <!-- Will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cooking Step Panel -->
+      <div class="cooking-step-panel" id="cooking-step-panel">
+        <div class="cooking-step-header">
+          <div class="cooking-step-title">
+            <div class="cooking-step-icon" id="cooking-step-icon">🍪</div>
+            <div class="cooking-step-info">
+              <h2 id="cooking-step-name">Step 1: Mix Dry Ingredients</h2>
+              <p id="cooking-recipe-name">Chocolate Chip Cookies</p>
+            </div>
+          </div>
+          <div class="cooking-step-meta">
+            <span id="cooking-step-time">⏱️ 5 min</span>
+            <span id="cooking-step-number">Step 1 of 4</span>
+          </div>
+        </div>
+
+        <div class="cooking-step-body">
+          <div class="cooking-step-left">
+            <div class="step-instructions">
+              <h3>📋 Instructions</h3>
+              <ul class="step-instructions-list" id="cooking-instructions">
+                <!-- Will be populated dynamically -->
+              </ul>
+            </div>
+
+            <div class="baking-counter" id="baking-counter">
+              <h3>🔥 Baking Counter</h3>
+              <div class="baking-counter-grid" id="baking-counter-grid">
+                <div class="baking-counter-empty">
+                  Transfer all ingredients here to proceed
+                </div>
+              </div>
+            </div>
+
+            <div class="cooking-proceed-section">
+              <div class="proceed-status waiting" id="proceed-status">
+                Transfer all ingredients to proceed to next step
+              </div>
+              <button class="btn-proceed" id="btn-proceed" disabled>
+                Proceed to Next Step
+              </button>
+              <button class="btn-cancel-cooking" id="btn-cancel-cooking">
+                Cancel Cooking
+              </button>
+            </div>
+          </div>
+
+          <div class="cooking-step-right">
+            <div class="ingredient-zones">
+              <h3>📦 Required Ingredients</h3>
+              <div id="ingredient-zones-list">
+                <!-- Will be populated dynamically -->
+              </div>
             </div>
           </div>
         </div>
