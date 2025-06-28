@@ -271,11 +271,109 @@ export function createPancakesRecipe(): MultiStepRecipe {
   return new MultiStepRecipe(metadata, [step1, step2]);
 }
 
+// Example 4: Vanilla Cupcakes with flexible frosting
+export function createVanillaCupcakesRecipe(): MultiStepRecipe {
+  const metadata: MultiStepRecipeMetadata = {
+    id: 'vanilla-cupcakes',
+    name: 'Vanilla Cupcakes',
+    description: 'Fluffy vanilla cupcakes with customizable frosting sweetness',
+    baseServings: 12,
+    difficulty: RecipeDifficulty.Easy,
+    bakingTime: 30,
+    icon: '🧁',
+    skillLevel: 'beginner',
+    tags: ['cupcakes', 'vanilla', 'party', 'customizable']
+  };
+
+  // Step 1: Make cupcake batter
+  const step1 = new RecipeStep(
+    {
+      id: 'cupcake-batter',
+      name: 'Make Cupcake Batter',
+      description: 'Create light and fluffy cupcake base',
+      order: 1,
+      estimatedTime: 10,
+      instructions: [
+        'Preheat oven to 350°F and line muffin tin with cupcake liners',
+        'In a bowl, cream {butter} until light and fluffy',
+        'Gradually add {sugar} and beat until well combined',
+        'Beat in {eggs} one at a time',
+        'Mix in {vanilla} for flavor',
+        'Gradually fold in {flour} until just combined (don\'t overmix)'
+      ]
+    },
+    StepType.Preparation,
+    [
+      new FlexibleIngredient(STARTER_INGREDIENTS.BUTTER, 1), // Fixed: 1 stick butter
+      new FlexibleIngredient(STARTER_INGREDIENTS.SUGAR, 20), // Fixed: 20 teaspoons sugar
+      new FlexibleIngredient(STARTER_INGREDIENTS.EGGS, 2), // Fixed: 2 eggs
+      new FlexibleIngredient(STARTER_INGREDIENTS.VANILLA, 3), // Fixed: 3 grams vanilla
+      new FlexibleIngredient(STARTER_INGREDIENTS.FLOUR, 2) // Fixed: 2 cups flour
+    ]
+  );
+
+  // Step 2: Bake cupcakes
+  const step2 = new RecipeStep(
+    {
+      id: 'bake-cupcakes',
+      name: 'Bake Cupcakes',
+      description: 'Bake until golden and fluffy',
+      order: 2,
+      estimatedTime: 18,
+      temperature: 350,
+      instructions: [
+        'Fill cupcake liners 2/3 full with batter',
+        'Bake for 15-18 minutes until toothpick inserted in center comes out clean',
+        'Cool in pan for 5 minutes, then transfer to wire rack',
+        'Cool completely before frosting'
+      ]
+    },
+    StepType.Baking,
+    [] // No additional ingredients needed
+  );
+
+  // Step 3: Make frosting and decorate
+  const step3 = new RecipeStep(
+    {
+      id: 'frost-cupcakes',
+      name: 'Frost & Decorate',
+      description: 'Add delicious buttercream frosting',
+      order: 3,
+      estimatedTime: 15,
+      instructions: [
+        'Beat {butter} until light and fluffy (about 3 minutes)',
+        'Gradually add {sugar} - use less for subtle sweetness, more for very sweet frosting',
+        'Beat in {vanilla} until smooth',
+        'Frost cooled cupcakes using a piping bag or spatula',
+        'Top with {chocolate} pieces for decoration - use more for festive look!'
+      ]
+    },
+    StepType.Decoration,
+    [
+      new FlexibleIngredient(STARTER_INGREDIENTS.BUTTER, 1), // Fixed: 1 stick butter for frosting
+      new FlexibleIngredient(
+        STARTER_INGREDIENTS.SUGAR,
+        { min: 15, max: 30, recommended: 22, step: 2 }, // Flexible: 15-30 teaspoons powdered sugar
+        'Adjust sweetness - less for mild frosting, more for very sweet'
+      ),
+      new FlexibleIngredient(STARTER_INGREDIENTS.VANILLA, 2), // Fixed: 2 grams vanilla
+      new FlexibleIngredient(
+        STARTER_INGREDIENTS.CHOCOLATE,
+        { min: 0, max: 20, recommended: 8, step: 2 }, // Flexible: 0-20 pieces for decoration
+        'Optional decoration - none for plain, more for festive cupcakes'
+      )
+    ]
+  );
+
+  return new MultiStepRecipe(metadata, [step1, step2, step3]);
+}
+
 // Recipe registry for the new multi-step recipes
 export const MULTI_STEP_RECIPE_REGISTRY = new Map<string, MultiStepRecipe>([
   ['chocolate-chip-cookies', createChocolateChipCookiesRecipe()],
   ['birthday-cake', createBirthdayCakeRecipe()],
-  ['fluffy-pancakes', createPancakesRecipe()]
+  ['fluffy-pancakes', createPancakesRecipe()],
+  ['vanilla-cupcakes', createVanillaCupcakesRecipe()]
 ]);
 
 export class MultiStepRecipeLibrary {

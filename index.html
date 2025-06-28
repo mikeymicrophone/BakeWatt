@@ -153,7 +153,38 @@
 
       <!-- Recipe Collection Panel -->
       <div class="recipe-collection-panel" id="recipe-collection-panel">
-        <h2>📚 Recipe Collection</h2>
+        <div class="recipe-collection-header">
+          <h2>📚 Recipe Collection</h2>
+          
+          <div class="recipe-controls">
+            <div class="sort-controls">
+              <label for="recipe-sort">Sort by:</label>
+              <select id="recipe-sort" class="recipe-sort-select">
+                <option value="name">Name (A-Z)</option>
+                <option value="difficulty">Difficulty</option>
+                <option value="time">Cooking Time</option>
+                <option value="servings">Servings</option>
+                <option value="recent">Recently Added</option>
+              </select>
+            </div>
+            
+            <div class="filter-controls">
+              <label for="recipe-filter">Filter:</label>
+              <select id="recipe-filter" class="recipe-filter-select">
+                <option value="all">All Recipes</option>
+                <option value="owned">My Recipes</option>
+                <option value="purchasable">Available to Buy</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            
+            <button class="btn-recipe-shop" id="btn-recipe-shop">
+              🛒 Recipe Shop
+            </button>
+          </div>
+        </div>
         
         <div class="recipe-grid" id="recipe-grid">
           <!-- Will be populated dynamically with recipes -->

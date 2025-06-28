@@ -127,7 +127,7 @@
 .ingredient-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -151,6 +151,45 @@
 
 .ingredient-amount.flexible {
   color: #ff9800;
+}
+
+.ingredient-content {
+  flex: 1;
+}
+
+.ingredient-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.ingredient-supply {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.ingredient-supply.abundant {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+  border: 1px solid #2196f3;
+}
+
+.ingredient-supply.sufficient {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid #4caf50;
+}
+
+.ingredient-supply.insufficient {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid #f44336;
 }
 
 .ingredient-notes {

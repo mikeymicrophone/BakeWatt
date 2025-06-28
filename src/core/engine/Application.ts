@@ -74,6 +74,7 @@ export class Application {
     this.setupCookingInterface();
     this.setupProductionInterface();
     this.setupStoreInterface();
+    this.setupRecipeControls();
     this.populateRecipeCollection();
     
     // Make app instance globally accessible early
@@ -385,11 +386,13 @@ export class Application {
     // Update meta information
     if (metaEl) {
       const overview = recipe.getOverview();
+      const productionInfo = this.getRecipeProductionInfo(recipe);
       metaEl.innerHTML = `
         <span>⏱️ ${overview.totalTime} minutes</span>
         <span>👥 ${overview.servings} servings</span>
         <span>📊 ${overview.difficulty}</span>
         <span>📋 ${overview.totalSteps} steps</span>
+        <span>🏭 Produces ${productionInfo.initialItems} ${productionInfo.itemName}</span>
         ${recipe.skillLevel ? `<span>🎯 ${recipe.skillLevel}</span>` : ''}
       `;
     }
@@ -414,27 +417,48 @@ export class Application {
             let amountClass = 'ingredient-amount';
             let notes = '';
             
+            // Get required amount
+            let requiredAmount = 0;
             if (flexIngredient.isFixed) {
               amountDisplay = `${flexIngredient.fixedAmount} ${ingredient.unit}`;
+              requiredAmount = flexIngredient.fixedAmount;
             } else if (flexIngredient.range) {
               amountClass += ' flexible';
               const range = flexIngredient.range;
               amountDisplay = `${range.min}-${range.max} ${ingredient.unit} (recommended: ${range.recommended})`;
+              requiredAmount = range.recommended || range.min;
               if (flexIngredient.notes) {
                 notes = `<div class="ingredient-notes">${flexIngredient.notes}</div>`;
               }
             }
             
+            // Get pantry supply and calculate color
+            const pantrySupply = this._gameState.pantry.getStock(ingredient.id);
+            const supplyRatio = requiredAmount > 0 ? pantrySupply / requiredAmount : 0;
+            let supplyClass = 'ingredient-supply insufficient';
+            let supplyText = `${pantrySupply} ${ingredient.unit}`;
+            
+            if (supplyRatio >= 2) {
+              supplyClass = 'ingredient-supply abundant';
+            } else if (supplyRatio >= 1) {
+              supplyClass = 'ingredient-supply sufficient';
+            } else {
+              supplyClass = 'ingredient-supply insufficient';
+            }
+            
             ingredientsHTML += `
               <div class="ingredient-item">
-                <div>
+                <div class="ingredient-content">
                   <div class="ingredient-name">
                     <span>${ingredient.icon}</span>
                     <span>${ingredient.name}</span>
                   </div>
                   ${notes}
                 </div>
-                <div class="${amountClass}">${amountDisplay}</div>
+                <div class="ingredient-amounts">
+                  <div class="${amountClass}">${amountDisplay}</div>
+                  <div class="${supplyClass}">${supplyText} in pantry</div>
+                </div>
               </div>
             `;
           });
@@ -480,6 +504,28 @@ export class Application {
     this.setupPantryButton();
   }
 
+  private getRecipeProductionInfo(recipe: any): { initialItems: number; itemName: string } {
+    // Default production values (this matches what we use in production interface)
+    const defaultProduction = {
+      initialItems: 2,
+      itemName: recipe.name.toLowerCase().includes('cookies') ? 'trays' :
+                recipe.name.toLowerCase().includes('brownies') ? 'pans' :
+                recipe.name.toLowerCase().includes('muffins') ? 'dozens' :
+                recipe.name.toLowerCase().includes('bread') ? 'loaves' :
+                recipe.name.toLowerCase().includes('cake') ? 'cakes' : 'items'
+    };
+
+    // You could extend this to read from recipe metadata if available
+    if (recipe.production) {
+      return {
+        initialItems: recipe.production.initialItems || defaultProduction.initialItems,
+        itemName: recipe.production.itemName || defaultProduction.itemName
+      };
+    }
+
+    return defaultProduction;
+  }
+
   private setupGlobalModalHandlers(): void {
     // Use event delegation for dynamic content
     document.addEventListener('click', (e) => {
@@ -492,12 +538,7 @@ export class Application {
         this.showPantryStock();
       }
       
-      // Handle recipe details close button
-      if (target.id === 'recipe-details-close') {
-        e.preventDefault();
-        console.log('Recipe details close button clicked via delegation');
-        this.hideRecipeDetails();
-      }
+      // Recipe details close button is handled in setupRecipeDetailsModal, not here
       
       // Handle pantry stock close button
       if (target.id === 'pantry-stock-close') {
@@ -1251,6 +1292,405 @@ export class Application {
         this.updateStoreDisplay();
       });
     }
+  }
+
+  private setupRecipeControls(): void {
+    const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
+    const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;
+    const recipeShopBtn = document.getElementById('btn-recipe-shop');
+
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        const sortBy = (e.target as HTMLSelectElement).value;
+        this.sortRecipes(sortBy);
+      });
+    }
+
+    if (filterSelect) {
+      filterSelect.addEventListener('change', (e) => {
+        const filterBy = (e.target as HTMLSelectElement).value;
+        this.filterRecipes(filterBy);
+      });
+    }
+
+    if (recipeShopBtn) {
+      recipeShopBtn.addEventListener('click', () => {
+        this.openRecipeShop();
+      });
+    }
+  }
+
+  @action
+  private sortRecipes(sortBy: string): void {
+    let recipes = MultiStepRecipeLibrary.getAllRecipes();
+    
+    switch (sortBy) {
+      case 'name':
+        recipes.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'difficulty':
+        const difficultyOrder = { 'Easy': 1, 'Medium': 2, 'Hard': 3 };
+        recipes.sort((a, b) => 
+          (difficultyOrder[a.difficulty] || 0) - (difficultyOrder[b.difficulty] || 0)
+        );
+        break;
+      case 'time':
+        recipes.sort((a, b) => a.bakingTime - b.bakingTime);
+        break;
+      case 'servings':
+        recipes.sort((a, b) => a.baseServings - b.baseServings);
+        break;
+      case 'recent':
+        // For demo purposes, reverse the default order
+        recipes.reverse();
+        break;
+    }
+
+    this.displaySortedRecipes(recipes);
+  }
+
+  @action
+  private filterRecipes(filterBy: string): void {
+    let recipes = MultiStepRecipeLibrary.getAllRecipes();
+    
+    switch (filterBy) {
+      case 'owned':
+        // Show recipes user has unlocked (for now, show all)
+        break;
+      case 'purchasable':
+        // Show recipes available for purchase (for now, show none as all are owned)
+        recipes = [];
+        break;
+      case 'easy':
+        recipes = recipes.filter(recipe => recipe.difficulty === 'Easy');
+        break;
+      case 'medium':
+        recipes = recipes.filter(recipe => recipe.difficulty === 'Medium');
+        break;
+      case 'hard':
+        recipes = recipes.filter(recipe => recipe.difficulty === 'Hard');
+        break;
+      case 'all':
+      default:
+        // Show all recipes
+        break;
+    }
+
+    this.displaySortedRecipes(recipes);
+  }
+
+  @action
+  private openRecipeShop(): void {
+    console.log('🛒 Opening recipe shop...');
+    
+    // Create dynamic recipe shop modal
+    this.createRecipeShopModal();
+  }
+
+  private createRecipeShopModal(): void {
+    // Remove any existing shop modal
+    const existingModal = document.getElementById('recipe-shop-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Create modal HTML
+    const shopModalHTML = `
+      <div class="recipe-shop-modal" id="recipe-shop-modal" style="display: flex;">
+        <div class="recipe-shop-content">
+          <button class="recipe-shop-close" id="recipe-shop-close">×</button>
+          
+          <div class="recipe-shop-header">
+            <div class="recipe-shop-icon">🛒</div>
+            <h1 class="recipe-shop-title">Recipe Shop</h1>
+            <p class="recipe-shop-subtitle">Discover new recipes to expand your baking skills!</p>
+          </div>
+          
+          <div class="recipe-shop-currency">
+            <div class="currency-display">
+              <span class="currency-icon">🪙</span>
+              <span class="currency-amount" id="player-coins">250</span>
+              <span class="currency-label">Baker Coins</span>
+            </div>
+          </div>
+          
+          <div class="recipe-shop-categories">
+            <button class="shop-category-btn active" data-category="featured">⭐ Featured</button>
+            <button class="shop-category-btn" data-category="desserts">🧁 Desserts</button>
+            <button class="shop-category-btn" data-category="breads">🍞 Breads</button>
+            <button class="shop-category-btn" data-category="seasonal">🎃 Seasonal</button>
+          </div>
+          
+          <div class="recipe-shop-grid" id="recipe-shop-grid">
+            <!-- Will be populated with purchasable recipes -->
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', shopModalHTML);
+
+    // Set up event listeners
+    this.setupRecipeShopModal();
+    
+    // Populate with demo recipes
+    this.populateRecipeShop('featured');
+  }
+
+  private setupRecipeShopModal(): void {
+    const modal = document.getElementById('recipe-shop-modal');
+    const closeBtn = document.getElementById('recipe-shop-close');
+    const categoryBtns = document.querySelectorAll('.shop-category-btn');
+
+    // Close button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (modal) modal.remove();
+      });
+    }
+
+    // Click outside to close
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    }
+
+    // Category buttons
+    categoryBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const category = target.dataset.category;
+        
+        // Update active state
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        target.classList.add('active');
+        
+        // Load category
+        if (category) {
+          this.populateRecipeShop(category);
+        }
+      });
+    });
+  }
+
+  private populateRecipeShop(category: string): void {
+    const shopGrid = document.getElementById('recipe-shop-grid');
+    if (!shopGrid) return;
+
+    // Demo purchasable recipes based on category
+    const shopRecipes = this.getShopRecipesByCategory(category);
+    
+    let recipesHTML = '';
+    shopRecipes.forEach(recipe => {
+      const isOwned = true; // For demo, assume user owns current recipes
+      const canAfford = recipe.price <= 250; // Demo coin amount
+      
+      recipesHTML += `
+        <div class="shop-recipe-card ${isOwned ? 'owned' : ''}">
+          <div class="shop-recipe-header">
+            <div class="shop-recipe-icon">${recipe.icon}</div>
+            <div class="shop-recipe-info">
+              <div class="shop-recipe-name">${recipe.name}</div>
+              <div class="shop-recipe-difficulty ${recipe.difficulty.toLowerCase()}">${recipe.difficulty}</div>
+            </div>
+            <div class="shop-recipe-price">
+              ${isOwned ? '<span class="owned-badge">✅ Owned</span>' : 
+                `<span class="price-tag ${canAfford ? 'affordable' : 'expensive'}">
+                  🪙 ${recipe.price}
+                </span>`}
+            </div>
+          </div>
+          
+          <div class="shop-recipe-description">${recipe.description}</div>
+          
+          <div class="shop-recipe-features">
+            <span class="recipe-feature">⏱️ ${recipe.time}min</span>
+            <span class="recipe-feature">🍽️ ${recipe.servings} servings</span>
+            <span class="recipe-feature">📊 ${recipe.difficulty}</span>
+          </div>
+          
+          <div class="shop-recipe-actions">
+            ${isOwned ? 
+              '<button class="btn-shop-recipe owned" disabled>Already Owned</button>' :
+              `<button class="btn-shop-recipe ${canAfford ? 'purchase' : 'expensive'}" 
+                       onclick="appInstance.purchaseRecipe('${recipe.id}', ${recipe.price})"
+                       ${!canAfford ? 'disabled' : ''}>
+                ${canAfford ? `Purchase for 🪙 ${recipe.price}` : 'Insufficient Coins'}
+              </button>`
+            }
+          </div>
+        </div>
+      `;
+    });
+
+    shopGrid.innerHTML = recipesHTML;
+  }
+
+  private getShopRecipesByCategory(category: string): any[] {
+    // Demo shop recipes - in a real implementation, these would come from a recipe database
+    const allShopRecipes = {
+      featured: [
+        {
+          id: 'chocolate-lava-cake',
+          name: 'Chocolate Lava Cake',
+          icon: '🌋',
+          difficulty: 'Hard',
+          price: 150,
+          description: 'Decadent molten chocolate dessert with a gooey center',
+          time: 45,
+          servings: 4
+        },
+        {
+          id: 'strawberry-shortcake',
+          name: 'Strawberry Shortcake',
+          icon: '🍰',
+          difficulty: 'Medium',
+          price: 100,
+          description: 'Classic summer dessert with fresh strawberries and cream',
+          time: 35,
+          servings: 8
+        }
+      ],
+      desserts: [
+        {
+          id: 'tiramisu',
+          name: 'Tiramisu',
+          icon: '🍮',
+          difficulty: 'Hard',
+          price: 200,
+          description: 'Italian coffee-flavored dessert with mascarpone',
+          time: 60,
+          servings: 6
+        },
+        {
+          id: 'apple-pie',
+          name: 'Apple Pie',
+          icon: '🥧',
+          difficulty: 'Medium',
+          price: 120,
+          description: 'Classic American dessert with spiced apples',
+          time: 90,
+          servings: 8
+        }
+      ],
+      breads: [
+        {
+          id: 'sourdough-bread',
+          name: 'Sourdough Bread',
+          icon: '🍞',
+          difficulty: 'Hard',
+          price: 180,
+          description: 'Artisanal bread with tangy sourdough starter',
+          time: 240,
+          servings: 12
+        },
+        {
+          id: 'dinner-rolls',
+          name: 'Dinner Rolls',
+          icon: '🥖',
+          difficulty: 'Easy',
+          price: 80,
+          description: 'Soft and fluffy dinner rolls perfect for any meal',
+          time: 90,
+          servings: 16
+        }
+      ],
+      seasonal: [
+        {
+          id: 'pumpkin-spice-cake',
+          name: 'Pumpkin Spice Cake',
+          icon: '🎃',
+          difficulty: 'Medium',
+          price: 140,
+          description: 'Fall-inspired cake with warm pumpkin spices',
+          time: 50,
+          servings: 10
+        },
+        {
+          id: 'gingerbread-cookies',
+          name: 'Gingerbread Cookies',
+          icon: '🍪',
+          difficulty: 'Easy',
+          price: 90,
+          description: 'Festive spiced cookies perfect for holidays',
+          time: 40,
+          servings: 24
+        }
+      ]
+    };
+
+    return allShopRecipes[category] || allShopRecipes.featured;
+  }
+
+  @action
+  public purchaseRecipe(recipeId: string, price: number): void {
+    console.log(`💰 Purchasing recipe: ${recipeId} for ${price} coins`);
+    
+    // For demo purposes, just show success message
+    // In a real implementation, this would:
+    // 1. Check if user has enough coins
+    // 2. Deduct coins from player account
+    // 3. Add recipe to player's collection
+    // 4. Update UI
+    
+    alert(`🎉 Recipe purchased successfully!\n\nYou spent ${price} Baker Coins and unlocked a new recipe!\n\n(This is a demo - recipe purchasing system would integrate with the game's economy in the full implementation)`);
+    
+    // Close the shop modal
+    const modal = document.getElementById('recipe-shop-modal');
+    if (modal) modal.remove();
+  }
+
+  private displaySortedRecipes(recipes: any[]): void {
+    const recipeGrid = document.getElementById('recipe-grid');
+    if (!recipeGrid) return;
+
+    if (recipes.length === 0) {
+      recipeGrid.innerHTML = `
+        <div class="empty-recipes">
+          <div class="empty-recipes-icon">📚</div>
+          <div class="empty-recipes-text">No recipes match your current filter</div>
+          <div class="empty-recipes-hint">Try selecting a different filter option</div>
+        </div>
+      `;
+      return;
+    }
+
+    let recipesHTML = '';
+    recipes.forEach(recipe => {
+      recipesHTML += `
+        <div class="recipe-card" data-recipe-id="${recipe.id}">
+          <div class="recipe-card-header">
+            <div class="recipe-icon">${recipe.icon}</div>
+            <div class="recipe-info">
+              <div class="recipe-name">${recipe.name}</div>
+              <div class="recipe-meta">
+                <span class="recipe-difficulty ${recipe.difficulty.toLowerCase()}">${recipe.difficulty}</span>
+                <span class="recipe-time">⏱️ ${recipe.bakingTime}min</span>
+                <span class="recipe-servings">🍽️ ${recipe.baseServings}</span>
+              </div>
+            </div>
+          </div>
+          <div class="recipe-description">${recipe.description}</div>
+          <div class="recipe-tags">
+            ${recipe.tags.map((tag: string) => `<span class="recipe-tag">${tag}</span>`).join('')}
+          </div>
+          <div class="recipe-actions">
+            <button class="btn-recipe-details" onclick="appInstance.showRecipeDetails('${recipe.id}')">
+              View Details
+            </button>
+            <button class="btn-start-cooking" onclick="appInstance.startCooking('${recipe.id}')">
+              Start Cooking
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    recipeGrid.innerHTML = recipesHTML;
   }
 
   @action
