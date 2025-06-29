@@ -286,6 +286,9 @@ export class ProductionService {
     
     this.hideProductionInterface();
     this.cancelCooking();
+    
+    // Go directly to store after finishing production
+    this.switchToTab('store');
   }
 
   // Getter for production data (readonly)

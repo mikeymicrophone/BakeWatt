@@ -10,7 +10,7 @@ export interface StoreState {
 
 export class Store {
   @observable private inventory: Map<string, StoreItemEntity> = new Map();
-  @observable private revenue: number = 0;
+  @observable private revenue: number = 5.00; // Start with $5
   private pricingEngine: PricingEngine;
 
   constructor(initialState?: StoreState) {
@@ -134,6 +134,15 @@ export class Store {
   @action
   public resetRevenue(): void {
     this.revenue = 0;
+  }
+
+  @action
+  public deductMoney(amount: number): boolean {
+    if (this.revenue >= amount) {
+      this.revenue -= amount;
+      return true;
+    }
+    return false;
   }
 
   public toState(): StoreState {

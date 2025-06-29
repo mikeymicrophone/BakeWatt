@@ -1745,16 +1745,22 @@ export class Application {
       totalCost *= 0.7;
     }
 
-    if (this._gameState.money < totalCost) {
-      this.showSalesNotification('Not enough money!', false);
+    console.log(`💰 Before purchase: $${this._gameState.store.getTotalRevenue().toFixed(2)}`);
+    console.log(`💰 Attempting to buy ${amount} ${ingredientId} for $${totalCost.toFixed(2)}`);
+
+    // Check if we have enough money and deduct cost
+    if (!this._gameState.store.deductMoney(totalCost)) {
+      this.showSalesNotification('Not enough money!');
       return;
     }
-
-    this._gameState.money -= totalCost;
+    
+    console.log(`💰 After purchase: $${this._gameState.store.getTotalRevenue().toFixed(2)}`);
+    
+    // Add ingredient to pantry
     this._gameState.pantry.addIngredient(ingredientId, amount);
 
     this._supplierStats.todaysOrders++;
-    this.showSalesNotification(`Purchased ${amount} ${ingredientId} for ${totalCost.toFixed(2)}`);
+    this.showSalesNotification(`Purchased ${amount} ${ingredientId} for $${totalCost.toFixed(2)}`);
 
     this.updateSupplierDisplay();
     this.populateRecipeCollection(); // Refresh recipe craftability
@@ -2326,6 +2332,15 @@ export class Application {
     if (result.success) {
       this.showSalesNotification(`Sold ${quantity} items for $${result.revenue.toFixed(2)}!`);
       this.updateStoreDisplay();
+      
+      // Check if store is now empty and go to supplier
+      const allItems = this._gameState.store.getAllItems();
+      if (allItems.length === 0) {
+        this.showSalesNotification('Store is empty! Time to restock at the supplier.');
+        setTimeout(() => {
+          this.switchToTab('supplier');
+        }, 2000); // Wait 2 seconds to show the message
+      }
     } else {
       alert(result.error || 'Sale failed');
     }
@@ -2480,8 +2495,13 @@ export class Application {
       this._supplierStats.bulkSavings += savings;
     }
 
-    // For demo purposes, we're not actually deducting coins yet since the economy isn't fully integrated
-    // In a full implementation, you'd deduct from a player coin balance here
+    // Deduct money from store revenue
+    console.log(`💰 Before purchase: $${availableCoins.toFixed(2)}`);
+    if (!this._gameState.store.deductMoney(totalCost)) {
+      alert('❌ Failed to deduct money!');
+      return;
+    }
+    console.log(`💰 After purchase: $${this._gameState.store.getTotalRevenue().toFixed(2)}`);
     
     // Show confirmation
     this.showPurchaseConfirmation(ingredient.name, quantity, totalCost, savings);
