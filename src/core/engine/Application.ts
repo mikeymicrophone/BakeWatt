@@ -865,14 +865,10 @@ export class Application {
   }
 
   private getRecipeProductionInfo(recipe: any): { initialItems: number; itemName: string } {
-    // Default production values (this matches what we use in production interface)
+    // Default production values with updated terminology mapping
     const defaultProduction = {
       initialItems: 2,
-      itemName: recipe.name.toLowerCase().includes('cookies') ? 'trays' :
-                recipe.name.toLowerCase().includes('brownies') ? 'pans' :
-                recipe.name.toLowerCase().includes('muffins') ? 'dozens' :
-                recipe.name.toLowerCase().includes('bread') ? 'loaves' :
-                recipe.name.toLowerCase().includes('cake') ? 'cakes' : 'items'
+      itemName: this.getRecipeOutputTerm(recipe)
     };
 
     // You could extend this to read from recipe metadata if available
@@ -884,6 +880,28 @@ export class Application {
     }
 
     return defaultProduction;
+  }
+
+  /**
+   * Get recipe-specific output terminology
+   * cookies: batches; cupcakes: trays; cake: cakes; pancakes: rounds
+   */
+  private getRecipeOutputTerm(recipe: any): string {
+    if (!recipe || !recipe.name) return 'items';
+    
+    const recipeName = recipe.name.toLowerCase();
+    
+    if (recipeName.includes('cookies')) return 'batches';
+    if (recipeName.includes('cupcakes')) return 'trays';
+    if (recipeName.includes('cake')) return 'cakes';
+    if (recipeName.includes('pancakes')) return 'rounds';
+    
+    // Fallback for other recipe types
+    if (recipeName.includes('brownies')) return 'pans';
+    if (recipeName.includes('muffins')) return 'dozens';
+    if (recipeName.includes('bread')) return 'loaves';
+    
+    return 'items'; // Default fallback
   }
 
   private setupGlobalModalHandlers(): void {
@@ -1680,24 +1698,26 @@ export class Application {
     const packagingMath = document.getElementById('packaging-math');
     const totalMathEq = document.getElementById('total-math-equation');
 
-    if (initialMath) initialMath.textContent = `Recipe produces ${initialItems} items`;
-    if (cuttingMath) cuttingMath.textContent = `${initialItems} items × ${piecesPerItem} pieces each = ${totalPieces} pieces`;
+    const outputTerm = this.getRecipeOutputTerm(this._currentRecipe);
+    
+    if (initialMath) initialMath.textContent = `Recipe produces ${initialItems} ${outputTerm}`;
+    if (cuttingMath) cuttingMath.textContent = `${initialItems} ${outputTerm} × ${piecesPerItem} pieces each = ${totalPieces} pieces`;
     
     // Show precise division with quotient and remainder
     if (packagingMath) {
       if (remainingPieces > 0) {
-        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages + ${remainingPieces} remaining pieces`;
+        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages + ${remainingPieces} loose pieces`;
       } else {
-        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages + 0 remaining pieces`;
+        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages`;
       }
     }
     
     // Update comprehensive equation
     if (totalMathEq) {
       if (remainingPieces > 0) {
-        totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages + ${remainingPieces} remaining`;
+        totalMathEq.textContent = `${initialItems} ${outputTerm} × ${piecesPerItem} pieces/${outputTerm.slice(0, -1)} ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages + ${remainingPieces} loose`;
       } else {
-        totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages + 0 remaining`;
+        totalMathEq.textContent = `${initialItems} ${outputTerm} × ${piecesPerItem} pieces/${outputTerm.slice(0, -1)} ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages`;
       }
     }
 
@@ -1706,15 +1726,15 @@ export class Application {
     const cuttingTotal = document.getElementById('cutting-total');
     const packagingTotal = document.getElementById('packaging-total');
 
-    if (initialTotal) initialTotal.textContent = `Total: ${initialItems} items`;
+    if (initialTotal) initialTotal.textContent = `Total: ${initialItems} ${outputTerm}`;
     if (cuttingTotal) cuttingTotal.textContent = `Total: ${totalPieces} pieces`;
     
-    // Show packages and remaining pieces
+    // Show packages and loose pieces
     if (packagingTotal) {
       if (remainingPieces > 0) {
-        packagingTotal.textContent = `Total: ${totalPackages} packages + ${remainingPieces} pieces remaining`;
+        packagingTotal.textContent = `Total: ${totalPackages} packages + ${remainingPieces} loose pieces`;
       } else {
-        packagingTotal.textContent = `Total: ${totalPackages} packages + 0 pieces remaining`;
+        packagingTotal.textContent = `Total: ${totalPackages} packages`;
       }
     }
 
@@ -1753,12 +1773,9 @@ export class Application {
 
     if (piecesAfterCutting) {
       let piecesHTML = '';
-      const maxDisplayPieces = Math.min(totalPieces, 24); // Limit display for performance
-      for (let i = 0; i < maxDisplayPieces; i++) {
+      // Show all pieces without truncation
+      for (let i = 0; i < totalPieces; i++) {
         piecesHTML += `<div class="visual-item piece">🔸</div>`;
-      }
-      if (totalPieces > maxDisplayPieces) {
-        piecesHTML += `<div class="visual-item piece">+${totalPieces - maxDisplayPieces}</div>`;
       }
       piecesAfterCutting.innerHTML = piecesHTML;
     }
@@ -1769,35 +1786,28 @@ export class Application {
 
     if (piecesBeforePackaging) {
       let piecesHTML = '';
-      const maxDisplayPieces = Math.min(totalPieces, 24);
-      for (let i = 0; i < maxDisplayPieces; i++) {
+      // Show all pieces without truncation
+      for (let i = 0; i < totalPieces; i++) {
         piecesHTML += `<div class="visual-item piece">🔸</div>`;
-      }
-      if (totalPieces > maxDisplayPieces) {
-        piecesHTML += `<div class="visual-item piece">+${totalPieces - maxDisplayPieces}</div>`;
       }
       piecesBeforePackaging.innerHTML = piecesHTML;
     }
 
     if (packagesAfterPackaging) {
       let packagesHTML = '';
-      const maxDisplayPackages = Math.min(totalPackages, 12);
       
-      // Show packages
-      for (let i = 0; i < maxDisplayPackages; i++) {
+      // Show all packages without truncation
+      for (let i = 0; i < totalPackages; i++) {
         packagesHTML += `<div class="visual-item package">📦</div>`;
       }
-      if (totalPackages > maxDisplayPackages) {
-        packagesHTML += `<div class="visual-item package">+${totalPackages - maxDisplayPackages}</div>`;
-      }
       
-      // Show remaining pieces if any
+      // Show loose pieces if any (hide when remainder is 0)
       if (remainingPieces > 0) {
         packagesHTML += `<div class="visual-item-separator">│</div>`;
         for (let i = 0; i < remainingPieces; i++) {
           packagesHTML += `<div class="visual-item piece remaining">🔸</div>`;
         }
-        packagesHTML += `<div class="visual-item-label">Remaining</div>`;
+        packagesHTML += `<div class="visual-item-label">Loose Pieces</div>`;
       }
       
       packagesAfterPackaging.innerHTML = packagesHTML;
