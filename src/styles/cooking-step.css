@@ -428,6 +428,13 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* Fixed 10x10 grid styling */
+.flexible-ingredient-grid.fixed-grid {
+  max-width: none;
+  width: fit-content;
+  padding: 8px;
+}
+
 .flexible-ingredient-grid .grid-cell {
   width: 100%;
   height: 100%;
@@ -435,6 +442,14 @@
   border-radius: 4px;
   transition: all 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Fixed grid cells have consistent size */
+.flexible-ingredient-grid.fixed-grid .grid-cell {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  border-radius: 3px;
 }
 
 .flexible-ingredient-grid .grid-cell.min-required {

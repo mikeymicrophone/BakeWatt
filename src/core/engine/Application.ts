@@ -1060,28 +1060,47 @@ export class Application {
   /**
    * Generate HTML for flexible ingredient grid with custom dimensions
    */
+  /**
+   * ⭐ FLEXIBLE INGREDIENT GRID GENERATOR ⭐
+   * 
+   * This method generates a fixed 10x10 grid (100 cells) for flexible ingredients.
+   * User selection is shown as a rectangle within this fixed grid backdrop.
+   * 
+   * GRID VISUALIZATION:
+   * - Red cells (min-required): Minimum quantity needed
+   * - Orange cells (max-allowed): Maximum quantity allowed  
+   * - Purple cells (selected): Currently selected amount (width x height rectangle)
+   * - Empty cells: Unused cells in the 10x10 grid
+   */
   private generateFlexibleIngredientGrid(minAmount: number, maxAmount: number, currentAmount: number, width: number, height: number): string {
-    const totalCells = width * height;
+    const FIXED_GRID_SIZE = 10; // Fixed 10x10 grid
+    const totalCells = FIXED_GRID_SIZE * FIXED_GRID_SIZE; // Always 100 cells
     const selectedAmount = Math.min(currentAmount, totalCells);
     
-    let gridHTML = `<div class="flexible-ingredient-grid" style="display: grid; grid-template-columns: repeat(${width}, 1fr); gap: 3px; margin: 10px 0; aspect-ratio: ${width}/${height};">`;
+    // Fixed 10x10 grid with consistent cell sizes
+    let gridHTML = `<div class="flexible-ingredient-grid fixed-grid" style="display: grid; grid-template-columns: repeat(${FIXED_GRID_SIZE}, 20px); grid-template-rows: repeat(${FIXED_GRID_SIZE}, 20px); gap: 2px; margin: 10px auto; width: fit-content;">`;
     
     for (let i = 0; i < totalCells; i++) {
       let cellClass = 'grid-cell';
+      const row = Math.floor(i / FIXED_GRID_SIZE);
+      const col = i % FIXED_GRID_SIZE;
       
+      // Color coding: Red = minimum required, Orange = maximum allowed
       if (i < minAmount) {
-        cellClass += ' min-required';
+        cellClass += ' min-required';    // Red gradient
       } else if (i < maxAmount) {
-        cellClass += ' max-allowed';
+        cellClass += ' max-allowed';     // Orange gradient  
       } else {
-        cellClass += ' empty';
+        cellClass += ' empty';           // Transparent
       }
       
-      if (i < selectedAmount) {
-        cellClass += ' selected';
+      // Purple overlay for currently selected rectangle (width x height)
+      // Show selection as a rectangle starting from top-left
+      if (row < height && col < width) {
+        cellClass += ' selected';        // Purple gradient (overrides other colors)
       }
       
-      gridHTML += `<div class="${cellClass}" data-cell-index="${i}"></div>`;
+      gridHTML += `<div class="${cellClass}" data-cell-index="${i}" data-row="${row}" data-col="${col}"></div>`;
     }
     
     gridHTML += '</div>';
@@ -1141,6 +1160,12 @@ export class Application {
     const width = parseInt(widthSlider.value);
     const height = parseInt(heightSlider.value);
     const selectedAmount = width * height;
+    
+    // Ensure selection doesn't exceed 10x10 grid (100 cells)
+    if (selectedAmount > 100) {
+      alert(`Selection too large! Maximum is 100 (10x10 grid). Current: ${selectedAmount} (${width}x${height})`);
+      return;
+    }
     
     const availableInPantry = this._gameState.pantry.getStock(ingredientId);
     
