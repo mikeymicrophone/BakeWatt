@@ -37,7 +37,8 @@ export class UIManager {
 
   public setupRecipeDetailsModal(): void {
     const modal = document.getElementById('recipe-details-modal');
-    const closeBtn = document.getElementById('btn-close-recipe-details');
+    // Support old and new close button IDs
+    const closeBtn = document.getElementById('recipe-details-close') || document.getElementById('btn-close-recipe-details');
     const cookBtn = document.getElementById('btn-cook-recipe');
 
     if (closeBtn) {
@@ -205,7 +206,8 @@ export class UIManager {
     let recipesHTML = '';
     
     recipes.forEach(recipe => {
-      const canMakeRecipe = gameState.recipes.canMake(recipe.id, gameState.pantry);
+      const currentServings = this.app.getCurrentServings ? this.app.getCurrentServings(recipe.id) : recipe.baseServings;
+      const canMakeRecipe = gameState.recipes.canMake(recipe.id, gameState.pantry, currentServings);
       const buttonClass = canMakeRecipe ? 'btn-recipe primary' : 'btn-recipe disabled';
       
       recipesHTML += `
@@ -216,7 +218,7 @@ export class UIManager {
           </div>
           <p class="recipe-description">${recipe.description}</p>
           <div class="recipe-meta">
-            <span class="recipe-servings">👥 ${recipe.baseServings} servings</span>
+            <span class="recipe-servings current-servings">👥 ${currentServings} servings</span>
             <span class="recipe-time">⏱️ ${recipe.bakingTime}min</span>
             <span class="recipe-difficulty">📊 ${recipe.difficulty}</span>
           </div>

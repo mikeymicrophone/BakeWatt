@@ -386,6 +386,11 @@ export class Application {
     return this._advancedMode;
   }
 
+  public getCurrentServings(recipeId: string): number {
+    const scaling = this.getRecipeScaling(recipeId);
+    return scaling.currentServings;
+  }
+
   private getRecipeScaling(recipeId: string): {
     currentServings: number;
     originalServings: number;
