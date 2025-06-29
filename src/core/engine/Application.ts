@@ -17,6 +17,7 @@ import { MultiStepRecipeLibrary } from '@/domain/baking';
 import { StorageService } from '@/core/storage/StorageService';
 import { UnitConversionService } from '@/domain/nutrition/UnitConversion';
 import { ProductionService } from '@/domain/production/ProductionService';
+import { PricingService } from '@/domain/pricing/PricingService';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -49,6 +50,7 @@ export class Application {
   private recipeScalingScene: RecipeScalingScene;
   private subtractionMathScene: SubtractionMathScene;
   private productionService: ProductionService;
+  private pricingService: PricingService;
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
@@ -68,11 +70,18 @@ export class Application {
     this.recipeScalingScene = container.get<RecipeScalingScene>(RecipeScalingScene);
     this.subtractionMathScene = container.get<SubtractionMathScene>(SubtractionMathScene);
     
+    // Initialize PricingService with required dependencies
+    this.pricingService = new PricingService(
+      this.ingredientService,
+      () => this._usedIngredients,
+      this.calculateRecipeCalories.bind(this)
+    );
+    
     // Initialize ProductionService with required callbacks
     this.productionService = new ProductionService({
       getRecipeProductionInfo: this.getRecipeProductionInfo.bind(this),
       getRecipeOutputTerm: this.getRecipeOutputTerm.bind(this),
-      calculateBasePrice: (recipe: any, productionData: any) => this.calculateBasePrice(recipe, productionData),
+      calculateBasePrice: (recipe: any, productionData: any) => this.pricingService.calculateBasePrice(recipe, productionData),
       gameStateStore: this._gameState.store,
       showSalesNotification: this.showSalesNotification.bind(this),
       switchToTab: this.switchToTab.bind(this),
@@ -1697,102 +1706,6 @@ export class Application {
     }
   }
 
-  private calculateBasePrice(recipe: any, productionData?: any): number {
-    // --- Base Calorie Calculation ---
-    const totalCalories = this.calculateRecipeCalories();
-    const pricePerCalorie = 0.05;
-    const calorieBasedPrice = totalCalories * pricePerCalorie;
-
-    // --- Apply All Pricing Factors ---
-    const nutritionMultiplier = this.calculateNutritionFactor(totalCalories);
-    const complexityMultiplier = this.calculateComplexityFactor(recipe);
-    const sophisticationMultiplier = this.calculateSophisticationFactor();
-    const portioningMultiplier = this.calculatePortioningFactor(totalCalories, productionData);
-
-    // --- Final Calculation ---
-    const multipliedPrice = calorieBasedPrice * nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier;
-    const finalBasePrice = Math.max(multipliedPrice, 0.50);
-
-    // --- Logging ---
-    console.log(`💰 Price calculation for ${recipe.name}:`);
-    console.log(`  - Calorie-based price: ${totalCalories.toFixed(1)} cal * ${pricePerCalorie}/cal = ${calorieBasedPrice.toFixed(2)}`);
-    console.log(`  - Nutrition Multiplier: ${nutritionMultiplier.toFixed(2)}x (from ${totalCalories.toFixed(0)} total calories)`);
-    console.log(`  - Complexity Multiplier: ${complexityMultiplier.toFixed(2)}x`);
-    console.log(`  - Sophistication Multiplier: ${sophisticationMultiplier.toFixed(2)}x (from ingredient gram variance)`);
-    console.log(`  - Portioning Multiplier: ${portioningMultiplier.toFixed(2)}x`);
-    console.log(`  - Combined Multipliers Total: ${(nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier).toFixed(2)}x`);
-    console.log(`  - Price after multipliers: ${multipliedPrice.toFixed(2)}`);
-    console.log(`  - Final base price (min $0.50): ${finalBasePrice.toFixed(2)}`);
-
-    return finalBasePrice;
-  }
-
-  /**
-   * Calculate nutrition-based pricing factor
-   * Based on total calories of the batch
-   */
-  private calculateNutritionFactor(totalCalories: number): number {
-    return 1 + Math.log10(Math.max(1, totalCalories / 1000));
-  }
-
-  /**
-   * Calculate complexity-based pricing factor
-   * Based on number of steps and instructions
-   */
-  private calculateComplexityFactor(recipe: any): number {
-    const numberOfSteps = recipe.steps.length > 0 ? recipe.steps.length : 1;
-    const totalInstructions = recipe.steps.reduce((sum: any, step: any) => sum + (step.instructions?.length || 0), 0) || 1;
-    const complexityScore = Math.log(numberOfSteps) * Math.log10(totalInstructions);
-    return 1 + complexityScore / 10;
-  }
-
-  /**
-   * Calculate sophistication-based pricing factor
-   * Based on variance in ingredient gram amounts (more balanced = more sophisticated)
-   */
-  private calculateSophisticationFactor(): number {
-    const gramAmounts: number[] = [];
-    this._usedIngredients.forEach((amount, ingredientId) => {
-        const ingredient = this.ingredientService.getIngredient(ingredientId);
-        if (ingredient) {
-            const grams = UnitConversionService.toGrams(ingredientId, amount, ingredient.unit);
-            gramAmounts.push(grams);
-        }
-    });
-
-    let sophisticationMultiplier = 1.0;
-    if (gramAmounts.length >= 2) {
-        const mean = gramAmounts.reduce((sum, val) => sum + val, 0) / gramAmounts.length;
-        if (mean > 0) {
-            const variance = gramAmounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / gramAmounts.length;
-            const stdDev = Math.sqrt(variance);
-            const cv = stdDev / mean;
-            sophisticationMultiplier = Math.max(0.5, 1.2 - cv);
-        }
-    }
-    return sophisticationMultiplier;
-  }
-
-  /**
-   * Calculate portioning-based pricing factor
-   * Based on calories per piece and pieces per package optimization
-   */
-  private calculatePortioningFactor(totalCalories: number, productionData?: any): number {
-    const { initialItems, piecesPerItem, piecesPerPackage } = productionData || { initialItems: 2, piecesPerItem: 24, piecesPerPackage: 4 };
-    const totalPieces = initialItems * piecesPerItem;
-
-    // Score for calories per piece (target: 100)
-    const caloriesPerPiece = totalPieces > 0 ? totalCalories / totalPieces : 0;
-    const calorieDistance = Math.abs(caloriesPerPiece - 100);
-    const calorieScore = Math.max(0, 1 - calorieDistance / 100); // Score from 0-1
-
-    // Score for pieces per package (target: 4)
-    const pieceCountDistance = Math.abs(piecesPerPackage - 4);
-    const pieceCountScore = Math.max(0, 1 - pieceCountDistance / 4); // Score from 0-1
-
-    const portioningScore = (calorieScore + pieceCountScore) / 2;
-    return 1 + portioningScore * 0.2; // Max multiplier 1.2
-  }
 
   private setupStoreInterface(): void {
     const closeBtn = document.getElementById('btn-close-store');
@@ -1847,49 +1760,6 @@ export class Application {
     this.populateRecipeCollection(); // Refresh recipe craftability
   }
 
-  private updateSupplierDisplay(): void {
-    const availableCoinsEl = document.getElementById('available-coins');
-    const todaysOrdersEl = document.getElementById('todays-orders');
-    const bulkSavingsEl = document.getElementById('bulk-savings');
-    const supplierGridEl = document.getElementById('supplier-items-grid');
-
-    if (availableCoinsEl) {
-      availableCoinsEl.textContent = `${this._gameState.money.toFixed(2)}`;
-    }
-    if (todaysOrdersEl) {
-      todaysOrdersEl.textContent = this._supplierStats.todaysOrders.toString();
-    }
-    if (bulkSavingsEl) {
-      bulkSavingsEl.textContent = `${this._supplierStats.bulkSavings.toFixed(2)}`;
-    }
-
-    if (supplierGridEl) {
-      supplierGridEl.innerHTML = '';
-      const ingredients = this.ingredientService.getAllIngredients();
-
-      ingredients.forEach(ingredient => {
-        const price = ingredient.basePrice || 0.5;
-        const canAfford = this._gameState.money >= price;
-
-        const itemCard = document.createElement('div');
-        itemCard.className = 'supplier-item-card';
-        itemCard.innerHTML = `
-          <div class="item-header">
-            <div class="item-icon">${ingredient.icon}</div>
-            <div class="item-name">${ingredient.name}</div>
-            <div class="item-price">${price.toFixed(2)}</div>
-          </div>
-          <div class="item-description">${(ingredient as any).description || 'A basic ingredient.'}</div>
-          <div class="item-actions">
-            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 1, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 1</button>
-            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 10, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 10 (15% off)</button>
-            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 100, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 100 (30% off)</button>
-          </div>
-        `;
-        supplierGridEl.appendChild(itemCard);
-      });
-    }
-  }
 
   private setupRecipeControls(): void {
     const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
