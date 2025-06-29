@@ -32,13 +32,13 @@ export class Application {
     todaysOrders: 0,
     bulkSavings: 0.00
   };
-  @observable private _recipeScaling = {
-    currentServings: 2,
-    originalServings: 2,
-    scalingFactor: 1,
-    previousServings: 2,
-    lastScaleMultiplier: 1
-  };
+  @observable private _recipeScalings: Map<string, {
+    currentServings: number;
+    originalServings: number;
+    scalingFactor: number;
+    previousServings: number;
+    lastScaleMultiplier: number;
+  }> = new Map();
   @observable private _currentRecipeScalingFactor: number = 1;
   @observable private _advancedMode: boolean = false;
   
@@ -321,6 +321,14 @@ export class Application {
         `<li class="step-item"><span class="step-number">${index + 1}.</span>${step.name}</li>`
       ).join('');
       
+      // Get recipe-specific scaling
+      const recipeScaling = this.getRecipeScaling(recipe.id);
+      
+      // Check if recipe can be made at current scaling
+      const canMakeRecipe = this.canMakeRecipeAtCurrentScale(recipe);
+      const buttonClass = canMakeRecipe ? 'btn-recipe primary' : 'btn-recipe unavailable';
+      const buttonText = canMakeRecipe ? 'Start Cooking' : 'Need More Ingredients';
+      
       recipeCard.innerHTML = `
         <div class="recipe-header">
           <div class="recipe-icon">${recipe.icon}</div>
@@ -329,7 +337,7 @@ export class Application {
         
         <div class="recipe-meta">
           <span>⏱️ ${overview.totalTime} min</span>
-          <span>👥 ${this._recipeScaling.scalingFactor === 1 ? `${overview.servings} servings` : `${this._recipeScaling.currentServings} servings (${this._recipeScaling.scalingFactor}x)`}</span>
+          <span>👥 ${recipeScaling.scalingFactor === 1 ? `${overview.servings} servings` : `${recipeScaling.currentServings} servings (${recipeScaling.scalingFactor}x)`}</span>
           <span>📊 ${overview.difficulty}</span>
         </div>
         
@@ -349,8 +357,8 @@ export class Application {
         </div>
         
         <div class="recipe-actions">
-          <button class="btn-recipe primary" onclick="window.appInstance.startCooking('${recipe.id}')">
-            Start Cooking
+          <button class="${buttonClass}" onclick="window.appInstance.startCooking('${recipe.id}')" ${canMakeRecipe ? '' : 'disabled'}>
+            ${buttonText}
           </button>
           <button class="btn-recipe secondary" data-recipe-id="${recipe.id}" onclick="window.appInstance.showRecipeDetails('${recipe.id}')">
             View Details
@@ -362,12 +370,75 @@ export class Application {
     });
   }
 
+  private canMakeRecipeAtCurrentScale(recipe: any): boolean {
+    try {
+      // Get recipe-specific scaling
+      const recipeScaling = this.getRecipeScaling(recipe.id);
+      
+      // Get current pantry stock
+      const pantryStock = this._gameState.pantry.getAllStock();
+      
+      // Get all ingredients needed for this recipe at current scale
+      const scaledNutrition = recipe.calculateScaledNutrition(recipeScaling.currentServings);
+      
+      // Check each step for required ingredients
+      for (const step of recipe.steps) {
+        for (const flexIngredient of step.ingredients) {
+          const ingredient = flexIngredient.ingredient;
+          const baseAmount = flexIngredient.getAmount();
+          
+          // Scale the required amount based on recipe-specific scaling factor
+          const scaledAmount = baseAmount * recipeScaling.scalingFactor;
+          
+          // Get available stock for this ingredient
+          const availableAmount = this._gameState.pantry.getStock(ingredient.id);
+          
+          // Check if we have enough
+          if (availableAmount < scaledAmount) {
+            console.log(`❌ Not enough ${ingredient.name}: need ${scaledAmount} ${ingredient.defaultUnit}, have ${availableAmount}`);
+            return false;
+          }
+        }
+      }
+      
+      console.log(`✅ Can make ${recipe.name} at ${recipeScaling.scalingFactor}x scale`);
+      return true;
+    } catch (error) {
+      console.error('Error checking recipe availability:', error);
+      return false; // Default to unavailable if there's an error
+    }
+  }
+
   public get currentTab(): string {
     return this._currentTab;
   }
 
   public get advancedMode(): boolean {
     return this._advancedMode;
+  }
+
+  private getRecipeScaling(recipeId: string): {
+    currentServings: number;
+    originalServings: number;
+    scalingFactor: number;
+    previousServings: number;
+    lastScaleMultiplier: number;
+  } {
+    if (!this._recipeScalings.has(recipeId)) {
+      // Initialize scaling for this recipe with default values
+      const recipe = MultiStepRecipeLibrary.getRecipeById(recipeId);
+      const baseServings = recipe ? recipe.getOverview().servings : 2;
+      
+      this._recipeScalings.set(recipeId, {
+        currentServings: baseServings,
+        originalServings: baseServings,
+        scalingFactor: 1,
+        previousServings: baseServings,
+        lastScaleMultiplier: 1
+      });
+    }
+    
+    return this._recipeScalings.get(recipeId)!;
   }
 
   @action
@@ -527,15 +598,23 @@ export class Application {
 
   @action
   public scaleRecipe(scalingMultiplier: number): void {
+    const recipe = this.getCurrentRecipeFromModal();
+    if (!recipe) {
+      console.error('No recipe found to scale');
+      return;
+    }
+    
+    const recipeScaling = this.getRecipeScaling(recipe.id);
+    
     // Store previous state for equation display
-    this._recipeScaling.previousServings = this._recipeScaling.currentServings;
-    this._recipeScaling.lastScaleMultiplier = scalingMultiplier;
+    recipeScaling.previousServings = recipeScaling.currentServings;
+    recipeScaling.lastScaleMultiplier = scalingMultiplier;
     
     // Update scaling factor by multiplying current factor
-    this._recipeScaling.scalingFactor *= scalingMultiplier;
-    this._recipeScaling.currentServings = Math.round(this._recipeScaling.originalServings * this._recipeScaling.scalingFactor);
+    recipeScaling.scalingFactor *= scalingMultiplier;
+    recipeScaling.currentServings = Math.round(recipeScaling.originalServings * recipeScaling.scalingFactor);
     
-    console.log(`🔢 Recipe scaled by ${scalingMultiplier}x. Current servings: ${this._recipeScaling.currentServings}, Factor: ${this._recipeScaling.scalingFactor}`);
+    console.log(`🔢 Recipe ${recipe.name} scaled by ${scalingMultiplier}x. Current servings: ${recipeScaling.currentServings}, Factor: ${recipeScaling.scalingFactor}`);
     
     this.updateRecipeScalingDisplay();
     this.updateIngredientAmounts();
@@ -544,12 +623,20 @@ export class Application {
 
   @action
   public resetRecipeScaling(): void {
-    this._recipeScaling.scalingFactor = 1;
-    this._recipeScaling.currentServings = this._recipeScaling.originalServings;
-    this._recipeScaling.previousServings = this._recipeScaling.originalServings;
-    this._recipeScaling.lastScaleMultiplier = 1;
+    const recipe = this.getCurrentRecipeFromModal();
+    if (!recipe) {
+      console.error('No recipe found to reset scaling');
+      return;
+    }
     
-    console.log(`🔄 Recipe scaling reset. Current servings: ${this._recipeScaling.currentServings}`);
+    const recipeScaling = this.getRecipeScaling(recipe.id);
+    
+    recipeScaling.scalingFactor = 1;
+    recipeScaling.currentServings = recipeScaling.originalServings;
+    recipeScaling.previousServings = recipeScaling.originalServings;
+    recipeScaling.lastScaleMultiplier = 1;
+    
+    console.log(`🔄 Recipe ${recipe.name} scaling reset. Current servings: ${recipeScaling.currentServings}`);
     
     this.updateRecipeScalingDisplay();
     this.updateIngredientAmounts();
@@ -557,11 +644,19 @@ export class Application {
   }
 
   private updateRecipeScalingDisplay(): void {
-    console.log('🔄 updateRecipeScalingDisplay called:', {
-      currentServings: this._recipeScaling.currentServings,
-      scalingFactor: this._recipeScaling.scalingFactor,
-      previousServings: this._recipeScaling.previousServings,
-      lastScaleMultiplier: this._recipeScaling.lastScaleMultiplier
+    const recipe = this.getCurrentRecipeFromModal();
+    if (!recipe) {
+      console.log('⚠️ No recipe found for scaling display update');
+      return;
+    }
+    
+    const recipeScaling = this.getRecipeScaling(recipe.id);
+    
+    console.log('🔄 updateRecipeScalingDisplay called for', recipe.name, ':', {
+      currentServings: recipeScaling.currentServings,
+      scalingFactor: recipeScaling.scalingFactor,
+      previousServings: recipeScaling.previousServings,
+      lastScaleMultiplier: recipeScaling.lastScaleMultiplier
     });
     
     const currentServingsEl = document.getElementById('current-servings');
@@ -570,21 +665,21 @@ export class Application {
     const scalingExplanationEl = document.getElementById('scaling-explanation');
     
     if (currentServingsEl) {
-      currentServingsEl.textContent = this._recipeScaling.currentServings.toString();
-      console.log('✅ Updated current servings display to:', this._recipeScaling.currentServings);
+      currentServingsEl.textContent = recipeScaling.currentServings.toString();
+      console.log('✅ Updated current servings display to:', recipeScaling.currentServings);
     } else {
       console.log('⚠️ current-servings element not found');
     }
     
     if (scalingMathEl && scalingEquationEl) {
-      if (this._recipeScaling.scalingFactor !== 1) {
+      if (recipeScaling.scalingFactor !== 1) {
         scalingMathEl.style.display = 'block';
-        const equation = `${this._recipeScaling.previousServings} servings × ${this._recipeScaling.lastScaleMultiplier} = ${this._recipeScaling.currentServings} servings`;
+        const equation = `${recipeScaling.originalServings} servings × ${recipeScaling.scalingFactor} = ${recipeScaling.currentServings} servings`;
         scalingEquationEl.textContent = equation;
         
         // Update the explanation text too
         if (scalingExplanationEl) {
-          scalingExplanationEl.textContent = `All ingredient amounts will be multiplied by ${this._recipeScaling.lastScaleMultiplier}`;
+          scalingExplanationEl.textContent = `All ingredient amounts will be multiplied by ${recipeScaling.scalingFactor}`;
         }
         
         console.log('✅ Updated scaling equation:', equation);
@@ -617,17 +712,9 @@ export class Application {
   }
 
   private populateRecipeDetailsModal(recipe: any): void {
-    // Initialize recipe scaling values - preserve existing scaling
+    // Get recipe-specific scaling
+    const recipeScaling = this.getRecipeScaling(recipe.id);
     const overview = recipe.getOverview();
-    
-    // Only reset to recipe base if we haven't scaled yet
-    if (this._recipeScaling.scalingFactor === 1) {
-      this._recipeScaling.originalServings = overview.servings;
-      this._recipeScaling.previousServings = overview.servings;
-      this._recipeScaling.lastScaleMultiplier = 1;
-    }
-    
-    this._recipeScaling.currentServings = Math.round(this._recipeScaling.originalServings * this._recipeScaling.scalingFactor);
     
     // Update header
     const iconEl = document.getElementById('recipe-details-icon');
@@ -647,11 +734,11 @@ export class Application {
       const productionInfo = this.getRecipeProductionInfo(recipe);
       
       // Calculate nutrition for current scaling
-      const nutrition = recipe.calculateScaledNutrition(this._recipeScaling.currentServings);
+      const nutrition = recipe.calculateScaledNutrition(recipeScaling.currentServings);
       
       metaEl.innerHTML = `
         <span>⏱️ ${overview.totalTime} minutes</span>
-        <span>👥 ${this._recipeScaling.currentServings} servings</span>
+        <span>👥 ${recipeScaling.currentServings} servings</span>
         <span>📊 ${overview.difficulty}</span>
         <span>📋 ${overview.totalSteps} steps</span>
         <span>🔥 ${nutrition.caloriesPerServing} cal/serving</span>
@@ -684,15 +771,15 @@ export class Application {
             // Get required amount and apply scaling
             let requiredAmount = 0;
             if (flexIngredient.isFixed) {
-              const scaledAmount = flexIngredient.fixedAmount * this._recipeScaling.scalingFactor;
+              const scaledAmount = flexIngredient.fixedAmount * recipeScaling.scalingFactor;
               amountDisplay = `${this.formatAmount(scaledAmount)} ${ingredient.unit}`;
               requiredAmount = scaledAmount;
             } else if (flexIngredient.range) {
               amountClass += ' flexible';
               const range = flexIngredient.range;
-              const scaledMin = range.min * this._recipeScaling.scalingFactor;
-              const scaledMax = range.max * this._recipeScaling.scalingFactor;
-              const scaledRecommended = (range.recommended || range.min) * this._recipeScaling.scalingFactor;
+              const scaledMin = range.min * recipeScaling.scalingFactor;
+              const scaledMax = range.max * recipeScaling.scalingFactor;
+              const scaledRecommended = (range.recommended || range.min) * recipeScaling.scalingFactor;
               amountDisplay = `${this.formatAmount(scaledMin)}-${this.formatAmount(scaledMax)} ${ingredient.unit} (recommended: ${this.formatAmount(scaledRecommended)})`;
               requiredAmount = scaledRecommended;
               if (flexIngredient.notes) {
@@ -842,8 +929,9 @@ export class Application {
     
     this._currentRecipe = recipe;
     
-    // Store the current scaling factor from the recipe details modal
-    this._currentRecipeScalingFactor = this._recipeScaling.scalingFactor;
+    // Store the current scaling factor from the recipe-specific scaling
+    const recipeScaling = this.getRecipeScaling(recipe.id);
+    this._currentRecipeScalingFactor = recipeScaling.scalingFactor;
     console.log(`🔢 Cooking with scaling factor: ${this._currentRecipeScalingFactor}x`);
     
     this._currentStep = 1;

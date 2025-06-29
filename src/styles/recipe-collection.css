@@ -367,6 +367,19 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.btn-recipe.unavailable {
+  background: #8b4513;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-recipe.unavailable:hover {
+  background: #8b4513;
+  transform: none;
+  opacity: 0.8;
+}
+
 .btn-recipe-details,
 .btn-start-cooking {
   flex: 1;
