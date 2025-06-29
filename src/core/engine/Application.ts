@@ -7,7 +7,6 @@ import { MultiplicationService } from '@/core/math/MultiplicationService';
 import { MathService } from '@/core/math/MathService';
 import { IngredientService } from '@/domain/inventory';
 import { RecipeService } from '@/domain/baking';
-import { RecipeScalingScene } from '@/presentation/scenes/RecipeScalingScene';
 import { SubtractionMathScene } from '@/presentation/scenes/SubtractionMathScene';
 import { container } from '@/shared/container';
 import { testIngredientSystem } from '@/domain/inventory/demo';
@@ -48,7 +47,6 @@ export class Application {
   private multiplicationService: MultiplicationService;
   private ingredientService: IngredientService;
   private recipeService: RecipeService;
-  private recipeScalingScene: RecipeScalingScene;
   private subtractionMathScene: SubtractionMathScene;
   private productionService: ProductionService;
   private pricingService: PricingService;
@@ -69,7 +67,6 @@ export class Application {
     this.multiplicationService = container.get<MultiplicationService>(MultiplicationService);
     this.ingredientService = container.get<IngredientService>(IngredientService);
     this.recipeService = container.get<RecipeService>(RecipeService);
-    this.recipeScalingScene = container.get<RecipeScalingScene>(RecipeScalingScene);
     this.subtractionMathScene = container.get<SubtractionMathScene>(SubtractionMathScene);
     
     // Initialize PricingService with required dependencies
@@ -220,10 +217,6 @@ export class Application {
         StorageService.saveGameState(this._gameState);
       }
     });
-  }
-
-  public get gameState(): GameState {
-    return this._gameState;
   }
 
   private setupUI(): void {
