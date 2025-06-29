@@ -67,8 +67,10 @@ export class UIManager {
   }
 
   public setupCookingInterface(): void {
-    const proceedBtn = document.getElementById('btn-proceed-step');
+    // Button to proceed to the next cooking step
+    const proceedBtn = document.getElementById('btn-proceed') || document.getElementById('btn-proceed-step');
     const cancelBtn = document.getElementById('btn-cancel-cooking');
+    const finishProductionBtn = document.getElementById('btn-finish-production');
 
     if (proceedBtn) {
       proceedBtn.addEventListener('click', () => {
@@ -79,6 +81,12 @@ export class UIManager {
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
         this.app.cancelCooking();
+      });
+    }
+
+    if (finishProductionBtn) {
+      finishProductionBtn.addEventListener('click', () => {
+        this.app.finishProduction();
       });
     }
   }
@@ -167,7 +175,8 @@ export class UIManager {
   }
 
   public populateRecipeCollection(recipes: any[], gameState: any): void {
-    const recipesGrid = document.getElementById('recipes-grid');
+    // Attempt to find recipe grid container (id updated in HTML)
+    const recipesGrid = document.getElementById('recipe-grid') || document.getElementById('recipes-grid');
     if (!recipesGrid) return;
 
     let recipesHTML = '';

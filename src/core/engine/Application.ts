@@ -1465,6 +1465,12 @@ export class Application {
     this.switchToTab('recipes');
   }
 
+  @action
+  public finishProduction(): void {
+    console.log('✅ Finishing production');
+    this.productionService.finishProduction();
+  }
+
   private setupZoomSync(): void {
     // Create callback for zoom changes
     this.zoomCallback = (zoomLevel: number) => {
