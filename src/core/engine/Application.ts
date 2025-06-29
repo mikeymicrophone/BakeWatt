@@ -1701,6 +1701,22 @@ export class Application {
   @action
   private showProductionInterface(): void {
     console.log('🏭 Showing production interface');
+
+    if (!this._currentRecipe) {
+      console.error('Cannot show production interface without a current recipe.');
+      return;
+    }
+
+    // Get base production info
+    const baseProductionInfo = this.getRecipeProductionInfo(this._currentRecipe);
+    
+    // Calculate scaled items, ensuring it's an integer
+    const scaledInitialItems = Math.round(baseProductionInfo.initialItems * this._currentRecipeScalingFactor);
+    
+    // Update production data
+    this._productionData.initialItems = scaledInitialItems;
+    
+    console.log(`📈 Production scaled: ${baseProductionInfo.initialItems} (base) * ${this._currentRecipeScalingFactor}x (scale) = ${scaledInitialItems} items`);
     
     // Hide cooking panel
     const cookingPanel = document.getElementById('cooking-step-panel');
