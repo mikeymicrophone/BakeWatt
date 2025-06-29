@@ -18,6 +18,7 @@ import { StorageService } from '@/core/storage/StorageService';
 import { UnitConversionService } from '@/domain/nutrition/UnitConversion';
 import { ProductionService } from '@/domain/production/ProductionService';
 import { PricingService } from '@/domain/pricing/PricingService';
+import { UIManager } from '@/presentation/ui/UIManager';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -51,6 +52,7 @@ export class Application {
   private subtractionMathScene: SubtractionMathScene;
   private productionService: ProductionService;
   private pricingService: PricingService;
+  private uiManager: UIManager;
   private cubeGrid: CubeGrid | null = null;
   private zoomSlider: HTMLInputElement | null = null;
   private zoomValue: HTMLSpanElement | null = null;
@@ -77,6 +79,9 @@ export class Application {
       this.calculateRecipeCalories.bind(this)
     );
     
+    // Initialize UIManager
+    this.uiManager = new UIManager(this);
+    
     // Initialize ProductionService with required callbacks
     this.productionService = new ProductionService({
       getRecipeProductionInfo: this.getRecipeProductionInfo.bind(this),
@@ -87,6 +92,36 @@ export class Application {
       switchToTab: this.switchToTab.bind(this),
       cancelCooking: this.cancelCooking.bind(this)
     });
+  }
+
+  // Public getters for UIManager
+  public get gameState(): GameState {
+    return this._gameState;
+  }
+
+  public get isAdvancedMode(): boolean {
+    return this._advancedMode;
+  }
+
+  // Helper methods for UIManager
+  public formatAmount(amount: number): string {
+    return Number(amount.toFixed(1)).toString();
+  }
+
+  public calculateTotalCost(basePrice: number, quantity: number): number {
+    let totalCost = basePrice * quantity;
+    if (quantity === 10) {
+      totalCost *= 0.85; // 15% off
+    } else if (quantity === 100) {
+      totalCost *= 0.7; // 30% off
+    }
+    return totalCost;
+  }
+
+  public calculateSavings(basePrice: number, quantity: number): number {
+    const regularPrice = basePrice * quantity;
+    const discountedPrice = this.calculateTotalCost(basePrice, quantity);
+    return regularPrice - discountedPrice;
   }
 
   private initializeGameState(): GameState {
@@ -120,13 +155,7 @@ export class Application {
     this.gestureHandler.mount(threeContainer);
     this.setupUI();
     this.setupZoomSync();
-    this.setupTabNavigation();
-    this.setupRecipeDetailsModal();
-    this.setupCookingInterface();
-    this.setupProductionInterface();
-    this.setupStoreInterface();
-    this.setupSupplierInterface();
-    this.setupRecipeControls();
+    this.uiManager.setupUI();
     this.populateRecipeCollection();
     
     // Make app instance globally accessible early
@@ -272,7 +301,7 @@ export class Application {
   }
 
   @action
-  private switchToTab(tabName: string): void {
+  public switchToTab(tabName: string): void {
     console.log(`🎯 Switching to ${tabName} tab`);
     
     // Update current tab
@@ -324,69 +353,8 @@ export class Application {
   }
 
   private populateRecipeCollection(): void {
-    const recipeGrid = document.getElementById('recipe-grid');
-    if (!recipeGrid) return;
-    
     const recipes = MultiStepRecipeLibrary.getAllRecipes();
-    
-    recipeGrid.innerHTML = '';
-    
-    recipes.forEach(recipe => {
-      const recipeCard = document.createElement('div');
-      recipeCard.className = 'recipe-card';
-      
-      const overview = recipe.getOverview();
-      const stepsList = recipe.steps.map((step, index) => 
-        `<li class="step-item"><span class="step-number">${index + 1}.</span>${step.name}</li>`
-      ).join('');
-      
-      // Get recipe-specific scaling
-      const recipeScaling = this.getRecipeScaling(recipe.id);
-      
-      // Check if recipe can be made at current scaling
-      const canMakeRecipe = this.canMakeRecipeAtCurrentScale(recipe);
-      const buttonClass = canMakeRecipe ? 'btn-recipe primary' : 'btn-recipe unavailable';
-      const buttonText = canMakeRecipe ? 'Start Cooking' : 'Need More Ingredients';
-      
-      recipeCard.innerHTML = `
-        <div class="recipe-header">
-          <div class="recipe-icon">${recipe.icon}</div>
-          <h3 class="recipe-title">${recipe.name}</h3>
-        </div>
-        
-        <div class="recipe-meta">
-          <span>⏱️ ${overview.totalTime} min</span>
-          <span>👥 ${recipeScaling.scalingFactor === 1 ? `${overview.servings} servings` : `${recipeScaling.currentServings} servings (${recipeScaling.scalingFactor}x)`}</span>
-          <span>📊 ${overview.difficulty}</span>
-        </div>
-        
-        <div class="recipe-description">
-          ${recipe.description}
-        </div>
-        
-        <div class="recipe-tags">
-          ${overview.tags.map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
-        </div>
-        
-        <div class="recipe-steps">
-          <h4>Steps (${overview.totalSteps})</h4>
-          <ul class="step-list">
-            ${stepsList}
-          </ul>
-        </div>
-        
-        <div class="recipe-actions">
-          <button class="${buttonClass}" onclick="window.appInstance.startCooking('${recipe.id}')" ${canMakeRecipe ? '' : 'disabled'}>
-            ${buttonText}
-          </button>
-          <button class="btn-recipe secondary" data-recipe-id="${recipe.id}" onclick="window.appInstance.showRecipeDetails('${recipe.id}')">
-            View Details
-          </button>
-        </div>
-      `;
-      
-      recipeGrid.appendChild(recipeCard);
-    });
+    this.uiManager.populateRecipeCollection(recipes, this._gameState);
   }
 
   private canMakeRecipeAtCurrentScale(recipe: any): boolean {
@@ -879,7 +847,7 @@ export class Application {
     
   }
 
-  private getRecipeProductionInfo(recipe: any): { initialItems: number; itemName: string } {
+  public getRecipeProductionInfo(recipe: any): { initialItems: number; itemName: string } {
     // Default production values with updated terminology mapping
     const defaultProduction = {
       initialItems: 2,
@@ -2346,16 +2314,8 @@ export class Application {
     }
   }
 
-  private showSalesNotification(message: string): void {
-    const notification = document.getElementById('sales-notification');
-    if (notification) {
-      notification.textContent = message;
-      notification.classList.add('show');
-      
-      setTimeout(() => {
-        notification.classList.remove('show');
-      }, 3000);
-    }
+  public showSalesNotification(message: string): void {
+    this.uiManager.showSalesNotification(message);
   }
 
   private updateSupplierDisplay(): void {
