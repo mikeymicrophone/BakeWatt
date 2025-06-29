@@ -121,7 +121,7 @@ export class RecipeScalingScene {
   }
 
   private updateScalingMathUI(problem: RecipeScalingProblem): void {
-    const scalingEquationEl = document.getElementById('scaling-equation');
+    const scalingEquationEl = document.getElementById('recipe-scaling-equation');
     if (scalingEquationEl) {
       scalingEquationEl.textContent = `${problem.baseServings} servings × ${problem.scalingFactor} = ${problem.targetServings} servings`;
     }

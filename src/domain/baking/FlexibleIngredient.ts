@@ -135,4 +135,47 @@ export class FlexibleIngredient {
       return `${min}-${max} ${this.ingredient.unit} (recommended: ${recommended})`;
     }
   }
+
+  /**
+   * Calculate calories for this ingredient using default amount
+   */
+  public calculateCalories(amount?: number): number {
+    const actualAmount = amount ?? this.getDefaultAmount();
+    return this.ingredient.calculateCalories(actualAmount, this.ingredient.unit);
+  }
+
+  /**
+   * Convert to grams using default amount
+   */
+  public toGrams(amount?: number): number {
+    const actualAmount = amount ?? this.getDefaultAmount();
+    return this.ingredient.toGrams(actualAmount, this.ingredient.unit);
+  }
+
+  /**
+   * Get nutrition info for this ingredient amount
+   */
+  public getNutritionInfo(amount?: number): {
+    grams: number;
+    calories: number;
+    protein: number;
+    fat: number;
+    carbs: number;
+  } {
+    const actualAmount = amount ?? this.getDefaultAmount();
+    const grams = this.ingredient.toGrams(actualAmount, this.ingredient.unit);
+    const nutrition = this.ingredient.getNutrition();
+    
+    if (!nutrition) {
+      return { grams, calories: 0, protein: 0, fat: 0, carbs: 0 };
+    }
+
+    return {
+      grams,
+      calories: grams * nutrition.caloriesPerGram,
+      protein: grams * (nutrition.proteinPerGram || 0),
+      fat: grams * (nutrition.fatPerGram || 0),
+      carbs: grams * (nutrition.carbsPerGram || 0)
+    };
+  }
 }

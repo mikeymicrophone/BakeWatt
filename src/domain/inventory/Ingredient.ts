@@ -1,8 +1,10 @@
+import { UnitConversionService, UnitConversion, IngredientNutrition } from '@/domain/nutrition/UnitConversion';
+
 export class Ingredient {
   constructor(
     public readonly id: string,
     public readonly name: string,
-    public readonly unit: string,
+    public readonly defaultUnit: string,
     public readonly icon: string = ''
   ) {
     if (!id || id.trim().length === 0) {
@@ -11,9 +13,79 @@ export class Ingredient {
     if (!name || name.trim().length === 0) {
       throw new Error('Ingredient name cannot be empty');
     }
-    if (!unit || unit.trim().length === 0) {
-      throw new Error('Ingredient unit cannot be empty');
+    if (!defaultUnit || defaultUnit.trim().length === 0) {
+      throw new Error('Ingredient default unit cannot be empty');
     }
+  }
+
+  /**
+   * Get all supported units for this ingredient
+   */
+  public getSupportedUnits(): UnitConversion[] {
+    return UnitConversionService.getSupportedUnits(this.id);
+  }
+
+  /**
+   * Get nutrition information for this ingredient
+   */
+  public getNutrition(): IngredientNutrition | null {
+    return UnitConversionService.getNutrition(this.id);
+  }
+
+  /**
+   * Convert an amount from one unit to another
+   */
+  public convert(amount: number, fromUnit: string, toUnit: string): number {
+    return UnitConversionService.convert(this.id, amount, fromUnit, toUnit);
+  }
+
+  /**
+   * Convert amount to grams
+   */
+  public toGrams(amount: number, unit: string): number {
+    return UnitConversionService.toGrams(this.id, amount, unit);
+  }
+
+  /**
+   * Convert grams to a specific unit
+   */
+  public fromGrams(grams: number, toUnit: string): number {
+    return UnitConversionService.fromGrams(this.id, grams, toUnit);
+  }
+
+  /**
+   * Calculate calories for a given amount and unit
+   */
+  public calculateCalories(amount: number, unit: string): number {
+    return UnitConversionService.calculateCalories(this.id, amount, unit);
+  }
+
+  /**
+   * Get the best display unit for a given gram amount
+   */
+  public getBestDisplayUnit(grams: number): { unit: string; amount: number } {
+    return UnitConversionService.getBestDisplayUnit(this.id, grams);
+  }
+
+  /**
+   * Get display name for a unit
+   */
+  public getUnitDisplayName(unit: string): string {
+    return UnitConversionService.getUnitDisplayName(this.id, unit);
+  }
+
+  /**
+   * Get abbreviation for a unit
+   */
+  public getUnitAbbreviation(unit: string): string {
+    return UnitConversionService.getUnitAbbreviation(this.id, unit);
+  }
+
+  /**
+   * Backward compatibility: returns default unit
+   */
+  public get unit(): string {
+    return this.defaultUnit;
   }
 
   public equals(other: Ingredient): boolean {
@@ -21,7 +93,7 @@ export class Ingredient {
   }
 
   public toString(): string {
-    return `${this.name} (${this.unit})`;
+    return `${this.name} (${this.defaultUnit})`;
   }
 }
 
@@ -29,7 +101,7 @@ export const STARTER_INGREDIENTS = {
   FLOUR: new Ingredient('flour', 'Flour', 'cups', '🌾'),
   BUTTER: new Ingredient('butter', 'Butter', 'sticks', '🧈'),
   EGGS: new Ingredient('eggs', 'Eggs', 'pieces', '🥚'),
-  SUGAR: new Ingredient('sugar', 'Sugar', 'teaspoons', '🍯'),
-  CHOCOLATE: new Ingredient('chocolate', 'Chocolate', 'pieces', '🍫'),
-  VANILLA: new Ingredient('vanilla', 'Vanilla', 'grams', '🌿')
+  SUGAR: new Ingredient('sugar', 'Sugar', 'cups', '🍯'),
+  CHOCOLATE: new Ingredient('chocolate', 'Chocolate', 'cups', '🍫'),
+  VANILLA: new Ingredient('vanilla', 'Vanilla', 'teaspoons', '🌿')
 } as const;

@@ -114,6 +114,41 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Mode Controls */
+.mode-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-advanced-mode {
+  background: linear-gradient(135deg, #4834d4, #6c5ce7);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-advanced-mode:hover {
+  background: linear-gradient(135deg, #3742fa, #4834d4);
+  transform: translateY(-1px);
+}
+
+.btn-advanced-mode.active {
+  background: linear-gradient(135deg, #00d2d3, #01a3a4);
+  box-shadow: 0 2px 8px rgba(0, 210, 211, 0.3);
+}
+
+.btn-advanced-mode.active:hover {
+  background: linear-gradient(135deg, #01a3a4, #006768);
+}
+
 /* Save Controls */
 .save-controls {
   display: flex;

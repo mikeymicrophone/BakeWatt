@@ -2,6 +2,7 @@ import { IngredientAmount } from '@/domain/inventory';
 import { RecipeMetadata, RecipeDifficulty } from './Recipe';
 import { RecipeStep } from './RecipeStep';
 import { FlexibleIngredient } from './FlexibleIngredient';
+import { NutritionCalculator, RecipeNutrition } from '@/domain/nutrition/NutritionCalculator';
 
 export interface MultiStepRecipeMetadata extends RecipeMetadata {
   totalSteps?: number;
@@ -255,5 +256,82 @@ export class MultiStepRecipe {
 
   public toString(): string {
     return `${this.name} (${this.baseServings} servings, ${this.steps.length} steps, ${this.difficulty})`;
+  }
+
+  /**
+   * Calculate complete nutrition information for this recipe
+   */
+  public calculateNutrition(customAmountsByStep?: Map<number, Map<string, number>>): RecipeNutrition {
+    const ingredients: Array<{
+      ingredientId: string;
+      ingredientName: string;
+      amount: number;
+      unit: string;
+    }> = [];
+
+    // Collect all ingredients from all steps
+    const totalRequirements = this.getTotalIngredientRequirements(customAmountsByStep);
+    
+    totalRequirements.forEach((totalAmount, ingredientId) => {
+      const flexibleIngredient = this.findIngredientInSteps(ingredientId);
+      if (flexibleIngredient) {
+        ingredients.push({
+          ingredientId: ingredientId,
+          ingredientName: flexibleIngredient.ingredient.name,
+          amount: totalAmount,
+          unit: flexibleIngredient.ingredient.unit
+        });
+      }
+    });
+
+    return NutritionCalculator.calculateRecipeNutrition(ingredients, this.baseServings);
+  }
+
+  /**
+   * Calculate nutrition for a scaled version of this recipe
+   */
+  public calculateScaledNutrition(targetServings: number, customAmountsByStep?: Map<number, Map<string, number>>): RecipeNutrition {
+    if (targetServings <= 0) {
+      throw new Error('Target servings must be positive');
+    }
+
+    const baseNutrition = this.calculateNutrition(customAmountsByStep);
+    return NutritionCalculator.calculateScaledNutrition(baseNutrition, this.baseServings, targetServings);
+  }
+
+  /**
+   * Get total calories for this recipe
+   */
+  public getTotalCalories(customAmountsByStep?: Map<number, Map<string, number>>): number {
+    const nutrition = this.calculateNutrition(customAmountsByStep);
+    return nutrition.totalCalories;
+  }
+
+  /**
+   * Get calories per serving for this recipe
+   */
+  public getCaloriesPerServing(customAmountsByStep?: Map<number, Map<string, number>>): number {
+    const nutrition = this.calculateNutrition(customAmountsByStep);
+    return nutrition.caloriesPerServing;
+  }
+
+  /**
+   * Get nutrition breakdown by ingredient
+   */
+  public getNutritionBreakdown(customAmountsByStep?: Map<number, Map<string, number>>): {
+    ingredientId: string;
+    ingredientName: string;
+    calories: number;
+    percentOfTotal: number;
+    grams: number;
+  }[] {
+    const nutrition = this.calculateNutrition(customAmountsByStep);
+    return nutrition.ingredientBreakdown.map(item => ({
+      ingredientId: item.ingredientId,
+      ingredientName: item.ingredientName,
+      calories: item.calories,
+      percentOfTotal: item.percentOfTotal,
+      grams: item.grams
+    }));
   }
 }

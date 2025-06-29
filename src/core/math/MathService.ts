@@ -306,4 +306,48 @@ export class MathService {
   public formatResult(problem: MultiplicationProblem): string {
     return this.formatMultiplicationResult(problem);
   }
+
+  // Supplier/Economics Methods
+  public static calculateBulkPrice(basePrice: number, quantity: 1 | 10 | 100): number {
+    switch (quantity) {
+      case 1:
+        return basePrice; // No discount
+      case 10:
+        return basePrice * 0.85; // 15% discount
+      case 100:
+        return basePrice * 0.70; // 30% discount
+      default:
+        return basePrice;
+    }
+  }
+
+  public static calculateTotalCost(basePrice: number, quantity: 1 | 10 | 100): number {
+    const unitPrice = this.calculateBulkPrice(basePrice, quantity);
+    return unitPrice * quantity;
+  }
+
+  public static calculateSavings(basePrice: number, quantity: 1 | 10 | 100): number {
+    if (quantity === 1) return 0;
+    
+    const regularTotal = basePrice * quantity;
+    const discountedTotal = this.calculateTotalCost(basePrice, quantity);
+    return regularTotal - discountedTotal;
+  }
+
+  public static getDiscountPercentage(quantity: 1 | 10 | 100): number {
+    switch (quantity) {
+      case 1: return 0;
+      case 10: return 15;
+      case 100: return 30;
+      default: return 0;
+    }
+  }
+
+  public static formatCurrency(amount: number): string {
+    return `$${amount.toFixed(2)}`;
+  }
+
+  public static roundToCents(amount: number): number {
+    return Math.round(amount * 100) / 100;
+  }
 }

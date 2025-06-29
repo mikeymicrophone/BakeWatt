@@ -4,6 +4,7 @@ import { CameraZoomManager } from './CameraZoomManager';
 import { CubeGrid } from '@/presentation/components/CubeGrid';
 import { GestureHandler } from '@/presentation/ui/GestureHandler';
 import { MultiplicationService } from '@/core/math/MultiplicationService';
+import { MathService } from '@/core/math/MathService';
 import { IngredientService } from '@/domain/inventory';
 import { RecipeService } from '@/domain/baking';
 import { RecipeScalingScene } from '@/presentation/scenes/RecipeScalingScene';
@@ -27,6 +28,19 @@ export class Application {
     piecesPerItem: 24,
     piecesPerPackage: 4
   };
+  @observable private _supplierStats = {
+    todaysOrders: 0,
+    bulkSavings: 0.00
+  };
+  @observable private _recipeScaling = {
+    currentServings: 2,
+    originalServings: 2,
+    scalingFactor: 1,
+    previousServings: 2,
+    lastScaleMultiplier: 1
+  };
+  @observable private _currentRecipeScalingFactor: number = 1;
+  @observable private _advancedMode: boolean = false;
   
   private sceneManager: SceneManager;
   private zoomManager: CameraZoomManager;
@@ -89,10 +103,10 @@ export class Application {
     this.setupZoomSync();
     this.setupTabNavigation();
     this.setupRecipeDetailsModal();
-    this.setupPantryStockModal();
     this.setupCookingInterface();
     this.setupProductionInterface();
     this.setupStoreInterface();
+    this.setupSupplierInterface();
     this.setupRecipeControls();
     this.populateRecipeCollection();
     
@@ -224,15 +238,17 @@ export class Application {
     const mathTab = document.getElementById('math-tab') as HTMLButtonElement;
     const transferTab = document.getElementById('transfer-tab') as HTMLButtonElement;
     const recipesTab = document.getElementById('recipes-tab') as HTMLButtonElement;
+    const supplierTab = document.getElementById('supplier-tab') as HTMLButtonElement;
     const storeTab = document.getElementById('store-tab') as HTMLButtonElement;
 
-    if (!mathTab || !transferTab || !recipesTab || !storeTab) {
+    if (!mathTab || !transferTab || !recipesTab || !supplierTab || !storeTab) {
       throw new Error('Tab navigation elements not found');
     }
 
     mathTab.addEventListener('click', () => this.switchToTab('math'));
     transferTab.addEventListener('click', () => this.switchToTab('transfer'));
     recipesTab.addEventListener('click', () => this.switchToTab('recipes'));
+    supplierTab.addEventListener('click', () => this.switchToTab('supplier'));
     storeTab.addEventListener('click', () => this.switchToTab('store'));
   }
 
@@ -255,11 +271,13 @@ export class Application {
     const transferPanel = document.getElementById('transfer-panel');
     const recipePanel = document.getElementById('recipe-collection-panel');
     const cookingPanel = document.getElementById('cooking-step-panel');
+    const supplierPanel = document.getElementById('supplier-panel');
     const storePanel = document.getElementById('store-panel');
     
     if (mathPanel) mathPanel.style.display = tabName === 'math' ? 'block' : 'none';
     if (transferPanel) transferPanel.style.display = tabName === 'transfer' ? 'block' : 'none';
     if (recipePanel) recipePanel.style.display = tabName === 'recipes' ? 'block' : 'none';
+    if (supplierPanel) supplierPanel.style.display = tabName === 'supplier' ? 'block' : 'none';
     if (storePanel) storePanel.style.display = tabName === 'store' ? 'block' : 'none';
     if (cookingPanel && tabName !== 'cooking') cookingPanel.style.display = 'none';
     
@@ -279,6 +297,10 @@ export class Application {
     
     if (tabName === 'store') {
       this.updateStoreDisplay();
+    }
+    
+    if (tabName === 'supplier') {
+      this.updateSupplierDisplay();
     }
   }
 
@@ -307,7 +329,7 @@ export class Application {
         
         <div class="recipe-meta">
           <span>⏱️ ${overview.totalTime} min</span>
-          <span>👥 ${overview.servings} servings</span>
+          <span>👥 ${this._recipeScaling.scalingFactor === 1 ? `${overview.servings} servings` : `${this._recipeScaling.currentServings} servings (${this._recipeScaling.scalingFactor}x)`}</span>
           <span>📊 ${overview.difficulty}</span>
         </div>
         
@@ -344,6 +366,73 @@ export class Application {
     return this._currentTab;
   }
 
+  public get advancedMode(): boolean {
+    return this._advancedMode;
+  }
+
+  @action
+  public setAdvancedMode(enabled: boolean): void {
+    this._advancedMode = enabled;
+    console.log(`🔢 Advanced mode ${enabled ? 'enabled' : 'disabled'} - ${enabled ? 'showing' : 'hiding'} decimal places`);
+    
+    // Refresh displays to show/hide decimals
+    this.refreshCurrentDisplays();
+  }
+
+  @action
+  public toggleAdvancedMode(): void {
+    this.setAdvancedMode(!this._advancedMode);
+  }
+
+  private updateAdvancedModeButton(button: HTMLElement): void {
+    if (this._advancedMode) {
+      button.textContent = '🔢 Basic Mode';
+      button.classList.add('active');
+      button.title = 'Switch to basic mode (hide decimal places)';
+    } else {
+      button.textContent = '🔢 Advanced Mode';
+      button.classList.remove('active');
+      button.title = 'Switch to advanced mode (show decimal places)';
+    }
+  }
+
+  /**
+   * Format numbers based on advanced mode setting
+   * Advanced mode: shows decimals (e.g., 1.5, 2.75)
+   * Basic mode: rounds to whole numbers (e.g., 2, 3)
+   */
+  private formatAmount(amount: number): string {
+    if (this._advancedMode) {
+      // Show up to 1 decimal place, remove trailing zeros
+      return (Math.round(amount * 10) / 10).toString();
+    } else {
+      // Round to nearest whole number for basic mode
+      return Math.round(amount).toString();
+    }
+  }
+
+  private refreshCurrentDisplays(): void {
+    // Refresh recipe details modal if open
+    const modal = document.getElementById('recipe-details-modal');
+    if (modal && modal.style.display === 'flex') {
+      const recipe = this.getCurrentRecipeFromModal();
+      if (recipe) {
+        this.populateRecipeDetailsModal(recipe);
+      }
+    }
+
+    // Refresh cooking interface if active
+    if (this._currentRecipe && this._currentStep > 0) {
+      this.showCookingStep();
+    }
+
+    // Refresh production interface if active
+    const productionPanel = document.getElementById('production-panel');
+    if (productionPanel && productionPanel.style.display !== 'none') {
+      this.updateProductionStep();
+    }
+  }
+
   private setupRecipeDetailsModal(): void {
     const modal = document.getElementById('recipe-details-modal');
     const closeBtn = document.getElementById('recipe-details-close');
@@ -374,6 +463,29 @@ export class Application {
         this.hideRecipeDetails();
       }
     });
+
+    // Recipe scaling controls
+    const doubleBtn = document.getElementById('btn-double-recipe');
+    const halveBtn = document.getElementById('btn-halve-recipe');
+    const resetBtn = document.getElementById('btn-reset-recipe');
+
+    if (doubleBtn) {
+      doubleBtn.addEventListener('click', () => {
+        this.scaleRecipe(2);
+      });
+    }
+
+    if (halveBtn) {
+      halveBtn.addEventListener('click', () => {
+        this.scaleRecipe(0.5);
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.resetRecipeScaling();
+      });
+    }
   }
 
   @action
@@ -386,7 +498,7 @@ export class Application {
 
     console.log(`🍽️ Showing details for recipe: ${recipe.name}`);
 
-    // Update modal content
+    // Update modal content (preserve existing scaling)
     this.populateRecipeDetailsModal(recipe);
 
     // Show modal
@@ -413,7 +525,110 @@ export class Application {
     }
   }
 
+  @action
+  public scaleRecipe(scalingMultiplier: number): void {
+    // Store previous state for equation display
+    this._recipeScaling.previousServings = this._recipeScaling.currentServings;
+    this._recipeScaling.lastScaleMultiplier = scalingMultiplier;
+    
+    // Update scaling factor by multiplying current factor
+    this._recipeScaling.scalingFactor *= scalingMultiplier;
+    this._recipeScaling.currentServings = Math.round(this._recipeScaling.originalServings * this._recipeScaling.scalingFactor);
+    
+    console.log(`🔢 Recipe scaled by ${scalingMultiplier}x. Current servings: ${this._recipeScaling.currentServings}, Factor: ${this._recipeScaling.scalingFactor}`);
+    
+    this.updateRecipeScalingDisplay();
+    this.updateIngredientAmounts();
+    this.populateRecipeCollection(); // Update recipe collection to show new scale
+  }
+
+  @action
+  public resetRecipeScaling(): void {
+    this._recipeScaling.scalingFactor = 1;
+    this._recipeScaling.currentServings = this._recipeScaling.originalServings;
+    this._recipeScaling.previousServings = this._recipeScaling.originalServings;
+    this._recipeScaling.lastScaleMultiplier = 1;
+    
+    console.log(`🔄 Recipe scaling reset. Current servings: ${this._recipeScaling.currentServings}`);
+    
+    this.updateRecipeScalingDisplay();
+    this.updateIngredientAmounts();
+    this.populateRecipeCollection(); // Update recipe collection to show reset scale
+  }
+
+  private updateRecipeScalingDisplay(): void {
+    console.log('🔄 updateRecipeScalingDisplay called:', {
+      currentServings: this._recipeScaling.currentServings,
+      scalingFactor: this._recipeScaling.scalingFactor,
+      previousServings: this._recipeScaling.previousServings,
+      lastScaleMultiplier: this._recipeScaling.lastScaleMultiplier
+    });
+    
+    const currentServingsEl = document.getElementById('current-servings');
+    const scalingMathEl = document.getElementById('scaling-math-display');
+    const scalingEquationEl = document.getElementById('scaling-equation');
+    const scalingExplanationEl = document.getElementById('scaling-explanation');
+    
+    if (currentServingsEl) {
+      currentServingsEl.textContent = this._recipeScaling.currentServings.toString();
+      console.log('✅ Updated current servings display to:', this._recipeScaling.currentServings);
+    } else {
+      console.log('⚠️ current-servings element not found');
+    }
+    
+    if (scalingMathEl && scalingEquationEl) {
+      if (this._recipeScaling.scalingFactor !== 1) {
+        scalingMathEl.style.display = 'block';
+        const equation = `${this._recipeScaling.previousServings} servings × ${this._recipeScaling.lastScaleMultiplier} = ${this._recipeScaling.currentServings} servings`;
+        scalingEquationEl.textContent = equation;
+        
+        // Update the explanation text too
+        if (scalingExplanationEl) {
+          scalingExplanationEl.textContent = `All ingredient amounts will be multiplied by ${this._recipeScaling.lastScaleMultiplier}`;
+        }
+        
+        console.log('✅ Updated scaling equation:', equation);
+      } else {
+        scalingMathEl.style.display = 'none';
+        console.log('✅ Hiding scaling equation (factor = 1)');
+      }
+    } else {
+      console.log('⚠️ scaling math elements not found:', {
+        scalingMathEl: !!scalingMathEl,
+        scalingEquationEl: !!scalingEquationEl,
+        scalingExplanationEl: !!scalingExplanationEl
+      });
+    }
+  }
+
+  private updateIngredientAmounts(): void {
+    const recipe = this.getCurrentRecipeFromModal();
+    if (recipe) {
+      this.populateRecipeDetailsModal(recipe);
+    }
+  }
+
+  private getCurrentRecipeFromModal(): any {
+    const titleEl = document.getElementById('recipe-details-title');
+    if (!titleEl) return null;
+    
+    const recipeName = titleEl.textContent;
+    return MultiStepRecipeLibrary.getAllRecipes().find(recipe => recipe.name === recipeName);
+  }
+
   private populateRecipeDetailsModal(recipe: any): void {
+    // Initialize recipe scaling values - preserve existing scaling
+    const overview = recipe.getOverview();
+    
+    // Only reset to recipe base if we haven't scaled yet
+    if (this._recipeScaling.scalingFactor === 1) {
+      this._recipeScaling.originalServings = overview.servings;
+      this._recipeScaling.previousServings = overview.servings;
+      this._recipeScaling.lastScaleMultiplier = 1;
+    }
+    
+    this._recipeScaling.currentServings = Math.round(this._recipeScaling.originalServings * this._recipeScaling.scalingFactor);
+    
     // Update header
     const iconEl = document.getElementById('recipe-details-icon');
     const titleEl = document.getElementById('recipe-details-title');
@@ -430,11 +645,17 @@ export class Application {
     if (metaEl) {
       const overview = recipe.getOverview();
       const productionInfo = this.getRecipeProductionInfo(recipe);
+      
+      // Calculate nutrition for current scaling
+      const nutrition = recipe.calculateScaledNutrition(this._recipeScaling.currentServings);
+      
       metaEl.innerHTML = `
         <span>⏱️ ${overview.totalTime} minutes</span>
-        <span>👥 ${overview.servings} servings</span>
+        <span>👥 ${this._recipeScaling.currentServings} servings</span>
         <span>📊 ${overview.difficulty}</span>
         <span>📋 ${overview.totalSteps} steps</span>
+        <span>🔥 ${nutrition.caloriesPerServing} cal/serving</span>
+        <span>⚖️ Total: ${nutrition.totalCalories} calories</span>
         <span>🏭 Produces ${productionInfo.initialItems} ${productionInfo.itemName}</span>
         ${recipe.skillLevel ? `<span>🎯 ${recipe.skillLevel}</span>` : ''}
       `;
@@ -460,16 +681,20 @@ export class Application {
             let amountClass = 'ingredient-amount';
             let notes = '';
             
-            // Get required amount
+            // Get required amount and apply scaling
             let requiredAmount = 0;
             if (flexIngredient.isFixed) {
-              amountDisplay = `${flexIngredient.fixedAmount} ${ingredient.unit}`;
-              requiredAmount = flexIngredient.fixedAmount;
+              const scaledAmount = flexIngredient.fixedAmount * this._recipeScaling.scalingFactor;
+              amountDisplay = `${this.formatAmount(scaledAmount)} ${ingredient.unit}`;
+              requiredAmount = scaledAmount;
             } else if (flexIngredient.range) {
               amountClass += ' flexible';
               const range = flexIngredient.range;
-              amountDisplay = `${range.min}-${range.max} ${ingredient.unit} (recommended: ${range.recommended})`;
-              requiredAmount = range.recommended || range.min;
+              const scaledMin = range.min * this._recipeScaling.scalingFactor;
+              const scaledMax = range.max * this._recipeScaling.scalingFactor;
+              const scaledRecommended = (range.recommended || range.min) * this._recipeScaling.scalingFactor;
+              amountDisplay = `${this.formatAmount(scaledMin)}-${this.formatAmount(scaledMax)} ${ingredient.unit} (recommended: ${this.formatAmount(scaledRecommended)})`;
+              requiredAmount = scaledRecommended;
               if (flexIngredient.notes) {
                 notes = `<div class="ingredient-notes">${flexIngredient.notes}</div>`;
               }
@@ -479,7 +704,11 @@ export class Application {
             const pantrySupply = this._gameState.pantry.getStock(ingredient.id);
             const supplyRatio = requiredAmount > 0 ? pantrySupply / requiredAmount : 0;
             let supplyClass = 'ingredient-supply insufficient';
-            let supplyText = `${pantrySupply} ${ingredient.unit}`;
+            let supplyText = `${this.formatAmount(pantrySupply)} ${ingredient.unit}`;
+            
+            // Add calorie information
+            const calories = flexIngredient.calculateCalories(requiredAmount);
+            const calorieText = calories > 0 ? ` (${Math.round(calories)} cal)` : '';
             
             if (supplyRatio >= 2) {
               supplyClass = 'ingredient-supply abundant';
@@ -499,7 +728,7 @@ export class Application {
                   ${notes}
                 </div>
                 <div class="ingredient-amounts">
-                  <div class="${amountClass}">${amountDisplay}</div>
+                  <div class="${amountClass}">${amountDisplay}${calorieText}</div>
                   <div class="${supplyClass}">${supplyText} in pantry</div>
                 </div>
               </div>
@@ -543,8 +772,9 @@ export class Application {
       stepsEl.innerHTML = stepsHTML;
     }
 
-    // Setup pantry button after modal content is populated
-    this.setupPantryButton();
+    // Update recipe scaling display
+    this.updateRecipeScalingDisplay();
+    
   }
 
   private getRecipeProductionInfo(recipe: any): { initialItems: number; itemName: string } {
@@ -574,151 +804,14 @@ export class Application {
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       
-      // Handle pantry button clicks
-      if (target.id === 'btn-show-pantry') {
-        e.preventDefault();
-        console.log('Pantry button clicked via delegation');
-        this.showPantryStock();
-      }
-      
       // Recipe details close button is handled in setupRecipeDetailsModal, not here
-      
-      // Handle pantry stock close button
-      if (target.id === 'pantry-stock-close') {
-        e.preventDefault();
-        console.log('Pantry stock close button clicked via delegation');
-        this.hidePantryStock();
-      }
     });
   }
 
-  private setupPantryStockModal(): void {
-    const modal = document.getElementById('pantry-stock-modal');
-    const closeBtn = document.getElementById('pantry-stock-close');
-    
-    if (!modal || !closeBtn) {
-      console.error('Pantry stock modal elements not found');
-      return;
-    }
 
-    // Close modal when clicking close button
-    closeBtn.addEventListener('click', () => {
-      this.hidePantryStock();
-    });
 
-    // Close modal when clicking outside the content
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        this.hidePantryStock();
-      }
-    });
 
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal.style.display === 'flex') {
-        this.hidePantryStock();
-      }
-    });
-  }
 
-  private setupPantryButton(): void {
-    const showPantryBtn = document.getElementById('btn-show-pantry');
-    
-    console.log('Setting up pantry button:', !!showPantryBtn);
-    
-    if (showPantryBtn) {
-      // Remove any existing listeners - create bound function first
-      const boundHandler = () => {
-        console.log('Pantry button clicked');
-        this.showPantryStock();
-      };
-      
-      // Store the handler so we can remove it later if needed
-      (showPantryBtn as any)._pantryHandler = boundHandler;
-      
-      // Add new listener
-      showPantryBtn.addEventListener('click', boundHandler);
-    } else {
-      console.log('Pantry button not found in DOM');
-    }
-  }
-
-  @action
-  public showPantryStock(): void {
-    console.log('📦 Showing pantry stock');
-
-    // Update pantry stock display
-    this.populatePantryStockModal();
-
-    // Show modal
-    const modal = document.getElementById('pantry-stock-modal');
-    if (modal) {
-      console.log('Pantry modal found, showing');
-      modal.style.setProperty('display', 'flex', 'important');
-      console.log('Pantry modal display style set to:', modal.style.display);
-    } else {
-      console.log('Pantry modal not found');
-    }
-  }
-
-  @action
-  public hidePantryStock(): void {
-    console.log('Hiding pantry stock');
-    const modal = document.getElementById('pantry-stock-modal');
-    if (modal) {
-      modal.style.setProperty('display', 'none', 'important');
-    }
-  }
-
-  private populatePantryStockModal(): void {
-    const gridEl = document.getElementById('pantry-stock-grid');
-    if (!gridEl) return;
-
-    let stockHTML = '';
-    
-    // Get all pantry stock
-    const pantryStock = this._gameState.pantry.getAllStock();
-    
-    // Convert to array and sort by ingredient name
-    const stockItems = Object.entries(pantryStock).sort((a, b) => {
-      const nameA = a[1].ingredient?.name || a[0];
-      const nameB = b[1].ingredient?.name || b[0];
-      return nameA.localeCompare(nameB);
-    });
-
-    stockItems.forEach(([ingredientId, stockData]) => {
-      const ingredient = stockData.ingredient;
-      const amount = stockData.amount;
-      
-      if (ingredient) {
-        // Determine amount status for color coding
-        let amountClass = 'pantry-stock-amount';
-        if (amount === 0) {
-          amountClass += ' empty';
-        } else if (amount <= 5) {
-          amountClass += ' low';
-        }
-
-        stockHTML += `
-          <div class="pantry-stock-item">
-            <div class="pantry-stock-item-header">
-              <div class="pantry-stock-icon">${ingredient.icon}</div>
-              <div class="pantry-stock-name">${ingredient.name}</div>
-            </div>
-            <div class="${amountClass}">
-              ${amount} ${ingredient.unit}
-            </div>
-          </div>
-        `;
-      }
-    });
-
-    if (stockHTML === '') {
-      gridEl.innerHTML = '<div class="pantry-stock-item"><div class="pantry-stock-name">No ingredients in pantry</div></div>';
-    } else {
-      gridEl.innerHTML = stockHTML;
-    }
-  }
 
   private setupCookingInterface(): void {
     const cancelBtn = document.getElementById('btn-cancel-cooking');
@@ -748,6 +841,11 @@ export class Application {
     console.log(`🍳 Starting cooking: ${recipe.name}`);
     
     this._currentRecipe = recipe;
+    
+    // Store the current scaling factor from the recipe details modal
+    this._currentRecipeScalingFactor = this._recipeScaling.scalingFactor;
+    console.log(`🔢 Cooking with scaling factor: ${this._currentRecipeScalingFactor}x`);
+    
     this._currentStep = 1;
     this._bakingCounter.clear();
 
@@ -816,9 +914,12 @@ export class Application {
 
     step.ingredients.forEach((flexIngredient: any) => {
       const ingredient = flexIngredient.ingredient;
-      const neededAmount = flexIngredient.isFixed ? 
+      const baseAmount = flexIngredient.isFixed ? 
         flexIngredient.fixedAmount : 
         flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
+      
+      // Apply scaling factor from recipe details modal
+      const neededAmount = baseAmount * this._currentRecipeScalingFactor;
       
       const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
       const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
@@ -832,7 +933,7 @@ export class Application {
               <span>${ingredient.icon}</span>
               <span>${ingredient.name}</span>
             </div>
-            <div class="ingredient-zone-amount">${neededAmount} ${ingredient.unit}</div>
+            <div class="ingredient-zone-amount">${this.formatAmount(neededAmount)} ${ingredient.unit}</div>
           </div>
           <div class="ingredient-zone-status">
             ${isTransferred ? 
@@ -929,12 +1030,17 @@ export class Application {
     
     for (const flexIngredient of currentStep.ingredients) {
       const ingredient = flexIngredient.ingredient;
-      const neededAmount = flexIngredient.isFixed ? 
+      const baseAmount = flexIngredient.isFixed ? 
         flexIngredient.fixedAmount : 
         flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
       
+      // Apply scaling factor (same as in populateIngredientZones)
+      const neededAmount = baseAmount * this._currentRecipeScalingFactor;
+      
       const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
-      if (transferredAmount < neededAmount) {
+      
+      // Use decimal-safe comparison with small tolerance for floating point errors
+      if (transferredAmount < neededAmount - 0.01) {
         allTransferred = false;
         break;
       }
@@ -1168,6 +1274,7 @@ export class Application {
     const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
     const totalPieces = initialItems * piecesPerItem;
     const totalPackages = Math.floor(totalPieces / piecesPerPackage);
+    const remainingPieces = totalPieces % piecesPerPackage;
 
     // Update slider values
     const cuttingValue = document.getElementById('cutting-value');
@@ -1176,7 +1283,7 @@ export class Application {
     if (cuttingValue) cuttingValue.textContent = piecesPerItem.toString();
     if (packagingValue) packagingValue.textContent = piecesPerPackage.toString();
 
-    // Update math displays
+    // Update math displays with exact division showing quotient and remainder
     const initialMath = document.getElementById('initial-math');
     const cuttingMath = document.getElementById('cutting-math');
     const packagingMath = document.getElementById('packaging-math');
@@ -1184,17 +1291,41 @@ export class Application {
 
     if (initialMath) initialMath.textContent = `Recipe produces ${initialItems} items`;
     if (cuttingMath) cuttingMath.textContent = `${initialItems} items × ${piecesPerItem} pieces each = ${totalPieces} pieces`;
-    if (packagingMath) packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages`;
-    if (totalMathEq) totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages`;
+    
+    // Show precise division with quotient and remainder
+    if (packagingMath) {
+      if (remainingPieces > 0) {
+        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages + ${remainingPieces} remaining pieces`;
+      } else {
+        packagingMath.textContent = `${totalPieces} pieces ÷ ${piecesPerPackage} per package = ${totalPackages} packages + 0 remaining pieces`;
+      }
+    }
+    
+    // Update comprehensive equation
+    if (totalMathEq) {
+      if (remainingPieces > 0) {
+        totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages + ${remainingPieces} remaining`;
+      } else {
+        totalMathEq.textContent = `${initialItems} items × ${piecesPerItem} pieces/item ÷ ${piecesPerPackage} pieces/package = ${totalPackages} packages + 0 remaining`;
+      }
+    }
 
-    // Update totals
+    // Update totals with precise counts
     const initialTotal = document.getElementById('initial-total');
     const cuttingTotal = document.getElementById('cutting-total');
     const packagingTotal = document.getElementById('packaging-total');
 
     if (initialTotal) initialTotal.textContent = `Total: ${initialItems} items`;
     if (cuttingTotal) cuttingTotal.textContent = `Total: ${totalPieces} pieces`;
-    if (packagingTotal) packagingTotal.textContent = `Total: ${totalPackages} packages`;
+    
+    // Show packages and remaining pieces
+    if (packagingTotal) {
+      if (remainingPieces > 0) {
+        packagingTotal.textContent = `Total: ${totalPackages} packages + ${remainingPieces} pieces remaining`;
+      } else {
+        packagingTotal.textContent = `Total: ${totalPackages} packages + 0 pieces remaining`;
+      }
+    }
 
     // Update visual representations
     this.updateProductionVisuals();
@@ -1204,6 +1335,7 @@ export class Application {
     const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
     const totalPieces = initialItems * piecesPerItem;
     const totalPackages = Math.floor(totalPieces / piecesPerPackage);
+    const remainingPieces = totalPieces % piecesPerPackage;
     const recipeIcon = this._currentRecipe?.icon || '🍪';
 
     // Step 1: Initial items
@@ -1259,12 +1391,24 @@ export class Application {
     if (packagesAfterPackaging) {
       let packagesHTML = '';
       const maxDisplayPackages = Math.min(totalPackages, 12);
+      
+      // Show packages
       for (let i = 0; i < maxDisplayPackages; i++) {
         packagesHTML += `<div class="visual-item package">📦</div>`;
       }
       if (totalPackages > maxDisplayPackages) {
         packagesHTML += `<div class="visual-item package">+${totalPackages - maxDisplayPackages}</div>`;
       }
+      
+      // Show remaining pieces if any
+      if (remainingPieces > 0) {
+        packagesHTML += `<div class="visual-item-separator">│</div>`;
+        for (let i = 0; i < remainingPieces; i++) {
+          packagesHTML += `<div class="visual-item piece remaining">🔸</div>`;
+        }
+        packagesHTML += `<div class="visual-item-label">Remaining</div>`;
+      }
+      
       packagesAfterPackaging.innerHTML = packagesHTML;
     }
   }
@@ -1340,10 +1484,21 @@ export class Application {
     }
   }
 
+  private setupSupplierInterface(): void {
+    const closeBtn = document.getElementById('btn-close-supplier');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.switchToTab('recipes');
+      });
+    }
+  }
+
   private setupRecipeControls(): void {
     const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
     const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;
     const recipeShopBtn = document.getElementById('btn-recipe-shop');
+    const advancedModeBtn = document.getElementById('btn-advanced-mode');
     const saveGameBtn = document.getElementById('btn-save-game');
     const loadGameBtn = document.getElementById('btn-load-game');
 
@@ -1364,6 +1519,14 @@ export class Application {
     if (recipeShopBtn) {
       recipeShopBtn.addEventListener('click', () => {
         this.openRecipeShop();
+      });
+    }
+
+    if (advancedModeBtn) {
+      this.updateAdvancedModeButton(advancedModeBtn);
+      advancedModeBtn.addEventListener('click', () => {
+        this.toggleAdvancedMode();
+        this.updateAdvancedModeButton(advancedModeBtn);
       });
     }
 
@@ -1910,6 +2073,184 @@ export class Application {
         notification.classList.remove('show');
       }, 3000);
     }
+  }
+
+  private updateSupplierDisplay(): void {
+    // Update stats
+    const availableCoinsEl = document.getElementById('available-coins');
+    const todaysOrdersEl = document.getElementById('todays-orders');
+    const bulkSavingsEl = document.getElementById('bulk-savings');
+
+    if (availableCoinsEl) {
+      const totalRevenue = this._gameState.store.getTotalRevenue();
+      availableCoinsEl.textContent = MathService.formatCurrency(totalRevenue);
+    }
+
+    if (todaysOrdersEl) {
+      todaysOrdersEl.textContent = this._supplierStats.todaysOrders.toString();
+    }
+
+    if (bulkSavingsEl) {
+      bulkSavingsEl.textContent = MathService.formatCurrency(this._supplierStats.bulkSavings);
+    }
+
+    // Populate supplier items
+    this.populateSupplierItems();
+  }
+
+  private populateSupplierItems(): void {
+    const supplierGrid = document.getElementById('supplier-items-grid');
+    if (!supplierGrid) return;
+
+    const ingredients = this.getSupplierIngredients();
+    
+    let itemsHTML = '';
+    ingredients.forEach(ingredient => {
+      const currentStock = this._gameState.pantry.getStock(ingredient.id);
+      const availableCoins = this._gameState.store.getTotalRevenue();
+      
+      itemsHTML += this.createSupplierItemHTML(ingredient, currentStock, availableCoins);
+    });
+
+    supplierGrid.innerHTML = itemsHTML;
+  }
+
+  private getSupplierIngredients() {
+    return [
+      { id: 'flour', name: 'All-Purpose Flour', icon: '🌾', unit: 'cups', basePrice: 0.50, description: 'High-quality baking flour' },
+      { id: 'butter', name: 'Butter', icon: '🧈', unit: 'sticks', basePrice: 0.75, description: 'Fresh dairy butter' },
+      { id: 'eggs', name: 'Fresh Eggs', icon: '🥚', unit: 'eggs', basePrice: 0.25, description: 'Farm-fresh eggs' },
+      { id: 'sugar', name: 'Granulated Sugar', icon: '🍚', unit: 'cups', basePrice: 0.40, description: 'Pure white sugar' },
+      { id: 'vanilla', name: 'Vanilla Extract', icon: '🍦', unit: 'tsp', basePrice: 1.20, description: 'Pure vanilla extract' },
+      { id: 'chocolate', name: 'Chocolate Chips', icon: '🍫', unit: 'cups', basePrice: 2.00, description: 'Premium chocolate chips' }
+    ];
+  }
+
+  private createSupplierItemHTML(ingredient: any, currentStock: number, availableCoins: number): string {
+    const quantities = [1, 10, 100] as const;
+    
+    return `
+      <div class="supplier-item-card">
+        <div class="supplier-item-header">
+          <div class="supplier-item-icon">${ingredient.icon}</div>
+          <div class="supplier-item-info">
+            <div class="supplier-item-name">${ingredient.name}</div>
+            <div class="supplier-item-description">${ingredient.description}</div>
+          </div>
+          <div class="supplier-item-stock">
+            <div class="current-stock">${currentStock}</div>
+            <div class="stock-unit">${ingredient.unit}</div>
+          </div>
+        </div>
+        
+        <div class="supplier-pricing">
+          ${quantities.map(qty => {
+            const unitPrice = MathService.calculateBulkPrice(ingredient.basePrice, qty);
+            const totalCost = MathService.calculateTotalCost(ingredient.basePrice, qty);
+            const savings = MathService.calculateSavings(ingredient.basePrice, qty);
+            const discount = MathService.getDiscountPercentage(qty);
+            
+            return `
+              <div class="price-option ${qty === 10 ? 'bulk' : qty === 100 ? 'wholesale' : ''}">
+                <div class="price-quantity">${qty} ${qty === 1 ? ingredient.unit : ingredient.unit}</div>
+                <div class="price-per-unit">${MathService.formatCurrency(unitPrice)}/${ingredient.unit}</div>
+                <div class="price-total">${MathService.formatCurrency(totalCost)}</div>
+                ${savings > 0 ? `<div class="price-savings">Save ${MathService.formatCurrency(savings)} (${discount}% off)</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <div class="supplier-purchase-buttons">
+          ${quantities.map(qty => {
+            const totalCost = MathService.calculateTotalCost(ingredient.basePrice, qty);
+            const canAfford = availableCoins >= totalCost;
+            const buttonClass = qty === 1 ? 'single' : qty === 10 ? 'bulk' : 'wholesale';
+            
+            return `
+              <button 
+                class="btn-purchase ${buttonClass}" 
+                ${!canAfford ? 'disabled' : ''}
+                onclick="appInstance.purchaseIngredient('${ingredient.id}', ${qty})"
+              >
+                <div class="purchase-amount">+${qty}</div>
+                <div class="purchase-price">${MathService.formatCurrency(totalCost)}</div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  @action
+  public purchaseIngredient(ingredientId: string, quantity: 1 | 10 | 100): void {
+    const ingredients = this.getSupplierIngredients();
+    const ingredient = ingredients.find(ing => ing.id === ingredientId);
+    
+    if (!ingredient) {
+      console.error('Ingredient not found:', ingredientId);
+      return;
+    }
+
+    const totalCost = MathService.calculateTotalCost(ingredient.basePrice, quantity);
+    const availableCoins = this._gameState.store.getTotalRevenue();
+    
+    if (availableCoins < totalCost) {
+      alert(`❌ Not enough coins! You need ${MathService.formatCurrency(totalCost)} but only have ${MathService.formatCurrency(availableCoins)}.`);
+      return;
+    }
+
+    // Add to pantry
+    this._gameState.pantry.addIngredient(ingredientId, quantity);
+    
+    // Update stats
+    this._supplierStats.todaysOrders += 1;
+    
+    const savings = MathService.calculateSavings(ingredient.basePrice, quantity);
+    if (savings > 0) {
+      this._supplierStats.bulkSavings += savings;
+    }
+
+    // For demo purposes, we're not actually deducting coins yet since the economy isn't fully integrated
+    // In a full implementation, you'd deduct from a player coin balance here
+    
+    // Show confirmation
+    this.showPurchaseConfirmation(ingredient.name, quantity, totalCost, savings);
+    
+    // Update displays
+    this.updateSupplierDisplay();
+    
+    // Save game state
+    StorageService.saveGameState(this._gameState);
+    
+    console.log(`🛒 Purchased ${quantity} ${ingredient.unit} of ${ingredient.name} for ${MathService.formatCurrency(totalCost)}`);
+  }
+
+  private showPurchaseConfirmation(ingredientName: string, quantity: number, cost: number, savings: number): void {
+    const confirmation = document.createElement('div');
+    confirmation.className = 'purchase-confirmation';
+    
+    let message = `🎉 Purchased ${quantity} ${ingredientName} for ${MathService.formatCurrency(cost)}`;
+    if (savings > 0) {
+      message += ` (Saved ${MathService.formatCurrency(savings)}!)`;
+    }
+    
+    confirmation.innerHTML = `
+      <span class="purchase-confirmation-icon">✅</span>
+      <span>${message}</span>
+    `;
+    
+    document.body.appendChild(confirmation);
+    
+    // Show animation
+    setTimeout(() => confirmation.classList.add('show'), 100);
+    
+    // Hide and remove
+    setTimeout(() => {
+      confirmation.classList.remove('show');
+      setTimeout(() => document.body.removeChild(confirmation), 300);
+    }, 3000);
   }
 
   @action

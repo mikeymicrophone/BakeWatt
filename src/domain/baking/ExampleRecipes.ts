@@ -33,7 +33,7 @@ export function createChocolateChipCookiesRecipe(): MultiStepRecipe {
     },
     StepType.Preparation,
     [
-      new FlexibleIngredient(STARTER_INGREDIENTS.FLOUR, 3) // Fixed: 3 cups flour
+      new FlexibleIngredient(STARTER_INGREDIENTS.FLOUR, 2.5) // Fixed: 2.5 cups flour
     ]
   );
 

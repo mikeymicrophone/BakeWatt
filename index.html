@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/src/styles/cooking-step.css">
   <link rel="stylesheet" href="/src/styles/production.css">
   <link rel="stylesheet" href="/src/styles/store.css">
+  <link rel="stylesheet" href="/src/styles/supplier.css">
 </head>
 <body>
   <div id="app">
@@ -84,7 +85,7 @@
             <input type="number" id="target-servings" min="1" max="20" value="6">
           </div>
           <div class="scaling-math">
-            <span id="scaling-equation">2 servings × 3 = 6 servings</span>
+            <span id="recipe-scaling-equation">2 servings × 3 = 6 servings</span>
           </div>
         </div>
         
@@ -188,6 +189,12 @@
               🛒 Recipe Shop
             </button>
             
+            <div class="mode-controls">
+              <button class="btn-advanced-mode" id="btn-advanced-mode">
+                🔢 Advanced Mode
+              </button>
+            </div>
+            
             <div class="save-controls">
               <button class="btn-save-game" id="btn-save-game">
                 💾 Save Game
@@ -224,10 +231,28 @@
           
           <div class="recipe-ingredients-section">
             <h3>🧄 Ingredients</h3>
-            <div class="pantry-button-container">
-              <button class="btn-pantry" id="btn-show-pantry">
-                📦 View Pantry Stock
-              </button>
+            <div class="recipe-controls-container">
+              <div class="recipe-scaling-controls">
+                <label class="scaling-label">Servings:</label>
+                <button class="btn-scaling decrease" id="btn-halve-recipe" title="Halve recipe (÷2)">
+                  ½x
+                </button>
+                <span class="current-servings" id="current-servings">2</span>
+                <button class="btn-scaling increase" id="btn-double-recipe" title="Double recipe (×2)">
+                  2x
+                </button>
+                <button class="btn-scaling reset" id="btn-reset-recipe" title="Reset to original">
+                  Reset
+                </button>
+              </div>
+            </div>
+            <div class="scaling-math-display" id="scaling-math-display" style="display: none;">
+              <div class="math-equation" id="scaling-equation">
+                <!-- Will be populated dynamically -->
+              </div>
+              <div class="math-explanation" id="scaling-explanation">
+                All ingredient amounts will be scaled accordingly
+              </div>
             </div>
             <div id="recipe-details-ingredients">
               <!-- Will be populated dynamically -->
@@ -243,21 +268,6 @@
         </div>
       </div>
 
-      <!-- Pantry Stock Modal -->
-      <div class="pantry-stock-modal" id="pantry-stock-modal">
-        <div class="pantry-stock-content">
-          <button class="pantry-stock-close" id="pantry-stock-close">×</button>
-          
-          <div class="pantry-stock-header">
-            <div class="pantry-stock-icon">📦</div>
-            <h1 class="pantry-stock-title">Pantry Stock</h1>
-          </div>
-          
-          <div class="pantry-stock-grid" id="pantry-stock-grid">
-            <!-- Will be populated dynamically -->
-          </div>
-        </div>
-      </div>
 
       <!-- Cooking Step Panel -->
       <div class="cooking-step-panel" id="cooking-step-panel">
@@ -553,6 +563,81 @@
         <div class="store-actions">
           <button class="btn-store secondary" id="btn-close-store">
             Close Store
+          </button>
+        </div>
+      </div>
+
+      <!-- Supplier Panel -->
+      <div class="supplier-panel" id="supplier-panel">
+        <div class="supplier-header">
+          <h1 class="supplier-title">
+            <span>🚚</span>
+            <span>BakeWatt Suppliers</span>
+          </h1>
+          <p class="supplier-subtitle">Restock your pantry with fresh ingredients</p>
+          
+          <div class="supplier-stats" id="supplier-stats">
+            <div class="supplier-stat">
+              <div class="supplier-stat-label">Available Coins</div>
+              <div class="supplier-stat-value" id="available-coins">$0.00</div>
+            </div>
+            <div class="supplier-stat">
+              <div class="supplier-stat-label">Today's Orders</div>
+              <div class="supplier-stat-value" id="todays-orders">0</div>
+            </div>
+            <div class="supplier-stat">
+              <div class="supplier-stat-label">Bulk Savings</div>
+              <div class="supplier-stat-value" id="bulk-savings">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="supplier-content">
+          <div class="pricing-info">
+            <h3>💰 Bulk Pricing Benefits</h3>
+            <div class="pricing-tiers">
+              <div class="pricing-tier single">
+                <div class="tier-icon">1️⃣</div>
+                <div class="tier-info">
+                  <div class="tier-name">Single Unit</div>
+                  <div class="tier-price">Base Price</div>
+                </div>
+              </div>
+              <div class="pricing-tier bulk">
+                <div class="tier-icon">🔟</div>
+                <div class="tier-info">
+                  <div class="tier-name">10-Pack</div>
+                  <div class="tier-price">15% Off</div>
+                </div>
+              </div>
+              <div class="pricing-tier wholesale">
+                <div class="tier-icon">💯</div>
+                <div class="tier-info">
+                  <div class="tier-name">100-Pack</div>
+                  <div class="tier-price">30% Off</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="supplier-inventory" id="supplier-inventory">
+            <div class="inventory-section">
+              <div class="inventory-section-header">
+                <h3 class="inventory-section-title">
+                  <span>🥄</span>
+                  <span>Ingredients Catalog</span>
+                </h3>
+              </div>
+              <div class="supplier-items-grid" id="supplier-items-grid">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="supplier-actions">
+          <button class="btn-supplier secondary" id="btn-close-supplier">
+            Close Supplier
           </button>
         </div>
       </div>
