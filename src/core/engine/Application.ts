@@ -15,6 +15,7 @@ import { testRecipeSystem } from '@/domain/baking/demo';
 import { GameState, GameStateFactory } from '@/domain/progression';
 import { MultiStepRecipeLibrary } from '@/domain/baking';
 import { StorageService } from '@/core/storage/StorageService';
+import { UnitConversionService } from '@/domain/nutrition/UnitConversion';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -23,6 +24,7 @@ export class Application {
   @observable private _currentRecipe: any | null = null;
   @observable private _currentStep: number = 0;
   @observable private _bakingCounter: Map<string, number> = new Map();
+  @observable private _usedIngredients: Map<string, number> = new Map(); // Track actual ingredient amounts used
   @observable private _productionData = {
     initialItems: 2,
     piecesPerItem: 24,
@@ -904,6 +906,71 @@ export class Application {
     return 'items'; // Default fallback
   }
 
+  /**
+   * Calculate total calories from actual ingredients used
+   * Returns total calories for the entire recipe
+   */
+  private calculateRecipeCalories(): number {
+    let totalCalories = 0;
+    
+    this._usedIngredients.forEach((amount, ingredientId) => {
+      // Get the ingredient from the ingredient service to find its unit
+      const ingredient = this.ingredientService.getIngredient(ingredientId);
+      if (!ingredient) {
+        console.warn(`Ingredient not found: ${ingredientId}`);
+        return;
+      }
+      
+      // Calculate calories using UnitConversionService
+      const ingredientCalories = UnitConversionService.calculateCalories(ingredientId, amount, ingredient.unit);
+      totalCalories += ingredientCalories;
+      
+      console.log(`📊 ${ingredientId}: ${amount} ${ingredient.unit} = ${ingredientCalories.toFixed(1)} calories`);
+    });
+    
+    console.log(`📊 Total recipe calories: ${totalCalories.toFixed(1)}`);
+    return totalCalories;
+  }
+
+  /**
+   * Generate nutrition display HTML for store items
+   */
+  private getItemNutritionDisplay(item: any): string {
+    // Only show nutrition for packages (which come from recipes)
+    if (item.category !== 'packages' || !item.recipeId) {
+      return '';
+    }
+
+    // For packages, try to estimate nutrition based on the recipe
+    // Since we don't have the exact ingredient amounts used when this package was made,
+    // we'll calculate from the current saved ingredients or use default recipe amounts
+    try {
+      const recipe = this.recipeService.getRecipe(item.recipeId);
+      if (!recipe) return '';
+
+      // If this item was made recently and we have the used ingredients data
+      if (this._usedIngredients.size > 0) {
+        const totalCalories = this.calculateRecipeCalories();
+        const { initialItems, piecesPerItem, piecesPerPackage } = this._productionData;
+        const totalPackages = Math.floor(initialItems * piecesPerItem / piecesPerPackage);
+        
+        if (totalPackages > 0) {
+          const caloriesPerPackage = totalCalories / totalPackages;
+          return `<div class="store-item-nutrition">🔥 ${caloriesPerPackage.toFixed(0)} cal/package</div>`;
+        }
+      }
+
+      // Fallback: estimate based on typical recipe values
+      // This is a simplified approach - could be enhanced with recipe default nutrition
+      const estimatedCaloriesPerPackage = Math.round(item.basePrice / 0.05); // Reverse calculation from $0.05/calorie
+      return `<div class="store-item-nutrition">🔥 ~${estimatedCaloriesPerPackage} cal/package</div>`;
+      
+    } catch (error) {
+      console.warn('Error calculating nutrition for item:', error);
+      return '';
+    }
+  }
+
   private setupGlobalModalHandlers(): void {
     // Use event delegation for dynamic content
     document.addEventListener('click', (e) => {
@@ -1488,6 +1555,14 @@ export class Application {
   private completeCooking(): void {
     console.log(`🎉 Recipe completed: ${this._currentRecipe?.name}`);
     
+    // Capture actual ingredient amounts used before clearing baking counter
+    this._usedIngredients.clear();
+    this._bakingCounter.forEach((amount, ingredientId) => {
+      this._usedIngredients.set(ingredientId, amount);
+    });
+    
+    console.log('📊 Captured ingredient amounts:', Array.from(this._usedIngredients.entries()));
+    
     // Show production interface instead of just alerting
     this.showProductionInterface();
   }
@@ -1499,6 +1574,7 @@ export class Application {
     this._currentRecipe = null;
     this._currentStep = 0;
     this._bakingCounter.clear();
+    this._usedIngredients.clear(); // Clear used ingredients tracking
 
     // Hide cooking panel
     const cookingPanel = document.getElementById('cooking-step-panel');
@@ -1847,23 +1923,15 @@ export class Application {
   }
 
   private calculateBasePrice(recipeName: string): number {
-    // Simple pricing based on recipe complexity
-    const basePrices: Record<string, number> = {
-      'cookies': 2.50,
-      'brownies': 3.00,
-      'muffins': 2.75,
-      'bread': 4.00,
-      'cake': 5.00
-    };
+    // Calculate price based on actual calories used in recipe
+    const totalCalories = this.calculateRecipeCalories();
+    const pricePerCalorie = 0.05; // 5 cents per calorie
+    const calorieBasedPrice = totalCalories * pricePerCalorie;
     
-    const recipeKey = recipeName.toLowerCase();
-    for (const [key, price] of Object.entries(basePrices)) {
-      if (recipeKey.includes(key)) {
-        return price;
-      }
-    }
+    console.log(`💰 Calorie-based pricing: ${totalCalories.toFixed(1)} calories × $${pricePerCalorie} = $${calorieBasedPrice.toFixed(2)}`);
     
-    return 3.00; // Default price
+    // Return at least $0.50 minimum price
+    return Math.max(calorieBasedPrice, 0.50);
   }
 
   private setupStoreInterface(): void {
@@ -2418,6 +2486,7 @@ export class Application {
                   <div class="store-item-details">
                     <h4 class="store-item-name">${item.name}</h4>
                     <div class="store-item-quantity">${item.quantity} in stock</div>
+                    ${this.getItemNutritionDisplay(item)}
                   </div>
                 </div>
                 <div class="store-item-pricing">
