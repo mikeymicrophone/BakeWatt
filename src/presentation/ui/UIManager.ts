@@ -207,7 +207,9 @@ export class UIManager {
     
     recipes.forEach(recipe => {
       const currentServings = this.app.getCurrentServings ? this.app.getCurrentServings(recipe.id) : recipe.baseServings;
-      const canMakeRecipe = gameState.recipes.canMake(recipe.id, gameState.pantry, currentServings);
+      const scaleFactor = currentServings / recipe.baseServings;
+      const scaledIngredients = recipe.ingredients.map((ing: any) => ing.multiply(scaleFactor));
+      const canMakeRecipe = gameState.pantry.canSupport(scaledIngredients);
       const buttonClass = canMakeRecipe ? 'btn-recipe primary' : 'btn-recipe disabled';
       
       recipesHTML += `
