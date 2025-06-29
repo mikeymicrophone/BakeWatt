@@ -1698,22 +1698,59 @@ export class Application {
   }
 
   private calculateBasePrice(recipe: any, productionData?: any): number {
-    // --- Existing Calorie Calculation ---
+    // --- Base Calorie Calculation ---
     const totalCalories = this.calculateRecipeCalories();
     const pricePerCalorie = 0.05;
     const calorieBasedPrice = totalCalories * pricePerCalorie;
 
-    // --- 1. Nutrition Multiplier ---
-    // Based on total calories of the batch.
-    const nutritionMultiplier = 1 + Math.log10(Math.max(1, totalCalories / 1000));
+    // --- Apply All Pricing Factors ---
+    const nutritionMultiplier = this.calculateNutritionFactor(totalCalories);
+    const complexityMultiplier = this.calculateComplexityFactor(recipe);
+    const sophisticationMultiplier = this.calculateSophisticationFactor();
+    const portioningMultiplier = this.calculatePortioningFactor(totalCalories, productionData);
 
-    // --- 2. Complexity Multiplier ---
+    // --- Final Calculation ---
+    const multipliedPrice = calorieBasedPrice * nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier;
+    const finalBasePrice = Math.max(multipliedPrice, 0.50);
+
+    // --- Logging ---
+    console.log(`💰 Price calculation for ${recipe.name}:`);
+    console.log(`  - Calorie-based price: ${totalCalories.toFixed(1)} cal * ${pricePerCalorie}/cal = ${calorieBasedPrice.toFixed(2)}`);
+    console.log(`  - Nutrition Multiplier: ${nutritionMultiplier.toFixed(2)}x (from ${totalCalories.toFixed(0)} total calories)`);
+    console.log(`  - Complexity Multiplier: ${complexityMultiplier.toFixed(2)}x`);
+    console.log(`  - Sophistication Multiplier: ${sophisticationMultiplier.toFixed(2)}x (from ingredient gram variance)`);
+    console.log(`  - Portioning Multiplier: ${portioningMultiplier.toFixed(2)}x`);
+    console.log(`  - Combined Multipliers Total: ${(nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier).toFixed(2)}x`);
+    console.log(`  - Price after multipliers: ${multipliedPrice.toFixed(2)}`);
+    console.log(`  - Final base price (min $0.50): ${finalBasePrice.toFixed(2)}`);
+
+    return finalBasePrice;
+  }
+
+  /**
+   * Calculate nutrition-based pricing factor
+   * Based on total calories of the batch
+   */
+  private calculateNutritionFactor(totalCalories: number): number {
+    return 1 + Math.log10(Math.max(1, totalCalories / 1000));
+  }
+
+  /**
+   * Calculate complexity-based pricing factor
+   * Based on number of steps and instructions
+   */
+  private calculateComplexityFactor(recipe: any): number {
     const numberOfSteps = recipe.steps.length > 0 ? recipe.steps.length : 1;
-    const totalInstructions = recipe.steps.reduce((sum, step) => sum + (step.instructions?.length || 0), 0) || 1;
+    const totalInstructions = recipe.steps.reduce((sum: any, step: any) => sum + (step.instructions?.length || 0), 0) || 1;
     const complexityScore = Math.log(numberOfSteps) * Math.log10(totalInstructions);
-    const complexityMultiplier = 1 + complexityScore / 10;
+    return 1 + complexityScore / 10;
+  }
 
-    // --- 3. Sophistication Multiplier ---
+  /**
+   * Calculate sophistication-based pricing factor
+   * Based on variance in ingredient gram amounts (more balanced = more sophisticated)
+   */
+  private calculateSophisticationFactor(): number {
     const gramAmounts: number[] = [];
     this._usedIngredients.forEach((amount, ingredientId) => {
         const ingredient = this.ingredientService.getIngredient(ingredientId);
@@ -1733,8 +1770,14 @@ export class Application {
             sophisticationMultiplier = Math.max(0.5, 1.2 - cv);
         }
     }
+    return sophisticationMultiplier;
+  }
 
-    // --- 4. Portioning Multiplier ---
+  /**
+   * Calculate portioning-based pricing factor
+   * Based on calories per piece and pieces per package optimization
+   */
+  private calculatePortioningFactor(totalCalories: number, productionData?: any): number {
     const { initialItems, piecesPerItem, piecesPerPackage } = productionData || { initialItems: 2, piecesPerItem: 24, piecesPerPackage: 4 };
     const totalPieces = initialItems * piecesPerItem;
 
@@ -1748,24 +1791,7 @@ export class Application {
     const pieceCountScore = Math.max(0, 1 - pieceCountDistance / 4); // Score from 0-1
 
     const portioningScore = (calorieScore + pieceCountScore) / 2;
-    const portioningMultiplier = 1 + portioningScore * 0.2; // Max multiplier 1.2
-
-    // --- Final Calculation ---
-    const multipliedPrice = calorieBasedPrice * nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier;
-    const finalBasePrice = Math.max(multipliedPrice, 0.50);
-
-    // --- Logging ---
-    console.log(`💰 Price calculation for ${recipe.name}:`);
-    console.log(`  - Calorie-based price: ${totalCalories.toFixed(1)} cal * ${pricePerCalorie}/cal = ${calorieBasedPrice.toFixed(2)}`);
-    console.log(`  - Nutrition Multiplier: ${nutritionMultiplier.toFixed(2)}x (from ${totalCalories.toFixed(0)} total calories)`);
-    console.log(`  - Complexity Multiplier: ${complexityMultiplier.toFixed(2)}x (${numberOfSteps} steps, ${totalInstructions} instructions)`);
-    console.log(`  - Sophistication Multiplier: ${sophisticationMultiplier.toFixed(2)}x (from ingredient gram variance)`);
-    console.log(`  - Portioning Multiplier: ${portioningMultiplier.toFixed(2)}x (from ${caloriesPerPiece.toFixed(0)} cal/piece and ${piecesPerPackage} pieces/package)`);
-    console.log(`  - Combined Multipliers Total: ${(nutritionMultiplier * complexityMultiplier * sophisticationMultiplier * portioningMultiplier).toFixed(2)}x`);
-    console.log(`  - Price after multipliers: ${multipliedPrice.toFixed(2)}`);
-    console.log(`  - Final base price (min $0.50): ${finalBasePrice.toFixed(2)}`);
-
-    return finalBasePrice;
+    return 1 + portioningScore * 0.2; // Max multiplier 1.2
   }
 
   private setupStoreInterface(): void {
