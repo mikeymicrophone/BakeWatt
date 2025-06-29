@@ -13,6 +13,17 @@ async function main() {
       app.destroy();
     });
     
+    // Make app available for debugging
+    (window as any).appInstance = app;
+    (window as any).testTabs = () => {
+      console.log('Testing tab functionality...');
+      const tabs = ['math', 'transfer', 'recipes', 'supplier', 'store'];
+      tabs.forEach(tabName => {
+        const btn = document.getElementById(`${tabName}-tab`);
+        console.log(`Tab ${tabName}:`, btn ? 'Found' : 'Missing', btn);
+      });
+    };
+    
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }

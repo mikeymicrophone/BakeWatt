@@ -17,14 +17,20 @@ export class UIManager {
   }
 
   public setupTabNavigation(): void {
-    const tabs = ['math', 'cooking', 'recipes', 'supplier', 'store'];
+    const tabs = ['math', 'transfer', 'recipes', 'supplier', 'store'];
+    
+    console.log('🔧 Setting up tab navigation for:', tabs);
     
     tabs.forEach(tabName => {
-      const tabBtn = document.getElementById(`btn-${tabName}-tab`);
+      const tabBtn = document.getElementById(`${tabName}-tab`);
       if (tabBtn) {
+        console.log(`✅ Found tab button: ${tabName}-tab`);
         tabBtn.addEventListener('click', () => {
+          console.log(`🖱️ Tab clicked: ${tabName}`);
           this.app.switchToTab(tabName);
         });
+      } else {
+        console.error(`❌ Tab button not found: ${tabName}-tab`);
       }
     });
   }
