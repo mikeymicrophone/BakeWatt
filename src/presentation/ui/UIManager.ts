@@ -170,8 +170,7 @@ export class UIManager {
 
     if (recipeShopBtn) {
       recipeShopBtn.addEventListener('click', () => {
-        // TODO: Implement openRecipeShop method
-        console.log('Open recipe shop');
+        this.app.openRecipeShop();
       });
     }
 

@@ -17,6 +17,7 @@ import { StorageService } from '@/core/storage/StorageService';
 import { UnitConversionService } from '@/domain/nutrition/UnitConversion';
 import { ProductionService } from '@/domain/production/ProductionService';
 import { PricingService } from '@/domain/pricing/PricingService';
+import { RecipeShop } from '@/domain/store';
 import { UIManager } from '@/presentation/ui/UIManager';
 
 export class Application {
@@ -502,6 +503,7 @@ export class Application {
       console.log('Modal element not found');
     }
   }
+
 
   @action
   public scaleRecipe(scalingMultiplier: number): void {
@@ -1698,7 +1700,7 @@ export class Application {
   }
 
   @action
-  private openRecipeShop(): void {
+  public openRecipeShop(): void {
     console.log('🛒 Opening recipe shop...');
     
     // Create dynamic recipe shop modal
@@ -1799,51 +1801,83 @@ export class Application {
     const shopGrid = document.getElementById('recipe-shop-grid');
     if (!shopGrid) return;
 
-    // Demo purchasable recipes based on category
-    const shopRecipes = this.getShopRecipesByCategory(category);
+    // Get real shop recipes from RecipeShop service
+    let shopRecipes = RecipeShop.getAvailableRecipes(this._gameState);
+    
+    // Filter by category if specified
+    if (category !== 'all') {
+      shopRecipes = RecipeShop.filterRecipesByCategory(shopRecipes, category);
+    }
+    
+    const playerRevenue = this._gameState.store.getTotalRevenue();
     
     let recipesHTML = '';
-    shopRecipes.forEach(recipe => {
-      const isOwned = true; // For demo, assume user owns current recipes
-      const canAfford = recipe.price <= 250; // Demo coin amount
+    shopRecipes.forEach(shopRecipe => {
+      const recipe = shopRecipe.recipe;
+      const isOwned = shopRecipe.isOwned;
+      const canAfford = playerRevenue >= shopRecipe.price;
+      const meetsLevel = this._gameState.currentLevel >= shopRecipe.levelRequirement;
+      const isPurchasable = shopRecipe.isPurchasable;
+      
+      let statusBadge = '';
+      let buttonHTML = '';
+      
+      if (isOwned) {
+        statusBadge = '<span class="owned-badge">✅ Owned</span>';
+        buttonHTML = '<button class="btn-shop-recipe owned" disabled>Already Owned</button>';
+      } else if (shopRecipe.comingSoon) {
+        statusBadge = `<span class="coming-soon-badge">🚧 Coming Soon</span>`;
+        buttonHTML = `<button class="btn-shop-recipe coming-soon" disabled>Coming Soon - $${shopRecipe.price.toFixed(2)}</button>`;
+      } else if (!meetsLevel) {
+        statusBadge = `<span class="level-required">🔒 Level ${shopRecipe.levelRequirement}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe locked" disabled>Requires Level ${shopRecipe.levelRequirement}</button>`;
+      } else if (!canAfford) {
+        statusBadge = `<span class="price-tag expensive">💰 $${shopRecipe.price.toFixed(2)}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe expensive" disabled>Insufficient Funds ($${shopRecipe.price.toFixed(2)})</button>`;
+      } else {
+        statusBadge = `<span class="price-tag affordable">💰 $${shopRecipe.price.toFixed(2)}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe purchase" onclick="appInstance.purchaseRecipe('${shopRecipe.id}')">
+          Purchase for $${shopRecipe.price.toFixed(2)}
+        </button>`;
+      }
       
       recipesHTML += `
-        <div class="shop-recipe-card ${isOwned ? 'owned' : ''}">
+        <div class="shop-recipe-card ${isOwned ? 'owned' : shopRecipe.comingSoon ? 'coming-soon' : isPurchasable ? 'purchasable' : 'locked'}">
           <div class="shop-recipe-header">
             <div class="shop-recipe-icon">${recipe.icon}</div>
             <div class="shop-recipe-info">
               <div class="shop-recipe-name">${recipe.name}</div>
-              <div class="shop-recipe-difficulty ${recipe.difficulty.toLowerCase()}">${recipe.difficulty}</div>
+              <div class="shop-recipe-difficulty ${shopRecipe.category}">${shopRecipe.category.charAt(0).toUpperCase() + shopRecipe.category.slice(1)}</div>
             </div>
             <div class="shop-recipe-price">
-              ${isOwned ? '<span class="owned-badge">✅ Owned</span>' : 
-                `<span class="price-tag ${canAfford ? 'affordable' : 'expensive'}">
-                  🪙 ${recipe.price}
-                </span>`}
+              ${statusBadge}
             </div>
           </div>
           
-          <div class="shop-recipe-description">${recipe.description}</div>
+          <div class="shop-recipe-description">${shopRecipe.description}</div>
           
           <div class="shop-recipe-features">
-            <span class="recipe-feature">⏱️ ${recipe.time}min</span>
-            <span class="recipe-feature">🍽️ ${recipe.servings} servings</span>
+            <span class="recipe-feature">⏱️ ${recipe.bakingTime}min</span>
+            <span class="recipe-feature">🍽️ ${recipe.baseServings} servings</span>
             <span class="recipe-feature">📊 ${recipe.difficulty}</span>
           </div>
           
           <div class="shop-recipe-actions">
-            ${isOwned ? 
-              '<button class="btn-shop-recipe owned" disabled>Already Owned</button>' :
-              `<button class="btn-shop-recipe ${canAfford ? 'purchase' : 'expensive'}" 
-                       onclick="appInstance.purchaseRecipe('${recipe.id}', ${recipe.price})"
-                       ${!canAfford ? 'disabled' : ''}>
-                ${canAfford ? `Purchase for 🪙 ${recipe.price}` : 'Insufficient Coins'}
-              </button>`
-            }
+            ${buttonHTML}
           </div>
         </div>
       `;
     });
+
+    if (shopRecipes.length === 0) {
+      recipesHTML = `
+        <div class="empty-shop-message">
+          <div class="empty-shop-icon">🛒</div>
+          <div class="empty-shop-text">No recipes available in this category</div>
+          <div class="empty-shop-hint">Try a different category or level up to unlock more recipes!</div>
+        </div>
+      `;
+    }
 
     shopGrid.innerHTML = recipesHTML;
   }
@@ -1945,24 +1979,33 @@ export class Application {
   }
 
   @action
-  public purchaseRecipe(recipeId: string, price: number): void {
-    console.log(`💰 Purchasing recipe: ${recipeId} for ${price} coins`);
+  public purchaseRecipe(recipeId: string, price?: number): void {
+    console.log(`💰 Attempting to purchase recipe: ${recipeId}`);
     
-    // For demo purposes, just show success message
-    // In a real implementation, this would:
-    // 1. Check if user has enough coins
-    // 2. Deduct coins from player account
-    // 3. Add recipe to player's collection
-    // 4. Update UI
+    const result = RecipeShop.purchaseRecipe(recipeId, this._gameState);
     
-    alert(`🎉 Recipe purchased successfully!\n\nYou spent ${price} Baker Coins and unlocked a new recipe!\n\n(This is a demo - recipe purchasing system would integrate with the game's economy in the full implementation)`);
-    
-    // Save game state after purchase
-    StorageService.saveGameState(this._gameState);
-    
-    // Close the shop modal
-    const modal = document.getElementById('recipe-shop-modal');
-    if (modal) modal.remove();
+    if (result.success) {
+      console.log(`✅ ${result.message}`);
+      
+      // Show success notification
+      this.uiManager.showSalesNotification(result.message);
+      
+      // Refresh shop display (use 'all' category to show current view)
+      this.populateRecipeShop('all');
+      
+      // Refresh recipe collection display
+      this.uiManager.populateRecipeCollection(
+        this._gameState.recipes.getAllRecipes(), 
+        this._gameState
+      );
+      
+      // Save game state
+      StorageService.saveGameState(this._gameState);
+      
+    } else {
+      console.log(`❌ ${result.message}`);
+      this.uiManager.showSalesNotification(`Purchase failed: ${result.message}`);
+    }
   }
 
   private displaySortedRecipes(recipes: any[]): void {
