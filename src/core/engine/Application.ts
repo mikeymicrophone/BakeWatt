@@ -1390,19 +1390,25 @@ export class Application {
     
     for (const flexIngredient of currentStep.ingredients) {
       const ingredient = flexIngredient.ingredient;
-      const baseAmount = flexIngredient.isFixed ? 
-        flexIngredient.fixedAmount : 
-        flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
-      
-      // Apply scaling factor (same as in populateIngredientZones)
-      const neededAmount = baseAmount * this._currentRecipeScalingFactor;
-      
       const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
       
-      // Use decimal-safe comparison with small tolerance for floating point errors
-      if (transferredAmount < neededAmount - 0.01) {
-        allTransferred = false;
-        break;
+      if (flexIngredient.isFixed) {
+        // Fixed ingredient - check exact amount
+        const neededAmount = flexIngredient.fixedAmount * this._currentRecipeScalingFactor;
+        if (transferredAmount < neededAmount - 0.01) {
+          allTransferred = false;
+          break;
+        }
+      } else if (flexIngredient.range) {
+        // Flexible ingredient - check if transferred amount is within valid range
+        const scaledMin = Math.ceil(flexIngredient.range.min * this._currentRecipeScalingFactor);
+        const scaledMax = Math.ceil(flexIngredient.range.max * this._currentRecipeScalingFactor);
+        
+        // Must have transferred something and it must be within the valid range
+        if (transferredAmount === 0 || transferredAmount < scaledMin || transferredAmount > scaledMax) {
+          allTransferred = false;
+          break;
+        }
       }
     }
 
