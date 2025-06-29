@@ -101,7 +101,7 @@ export const STARTER_INGREDIENTS = {
   FLOUR: new Ingredient('flour', 'Flour', 'cups', '🌾'),
   BUTTER: new Ingredient('butter', 'Butter', 'sticks', '🧈'),
   EGGS: new Ingredient('eggs', 'Eggs', 'pieces', '🥚'),
-  SUGAR: new Ingredient('sugar', 'Sugar', 'cups', '🍯'),
+  SUGAR: new Ingredient('sugar', 'Sugar', 'teaspoons', '🍯'),
   CHOCOLATE: new Ingredient('chocolate', 'Chocolate', 'cups', '🍫'),
   VANILLA: new Ingredient('vanilla', 'Vanilla', 'teaspoons', '🌿')
 } as const;

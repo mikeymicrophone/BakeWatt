@@ -2208,7 +2208,7 @@ export class Application {
       { id: 'flour', name: 'All-Purpose Flour', icon: '🌾', unit: 'cups', basePrice: 0.50, description: 'High-quality baking flour' },
       { id: 'butter', name: 'Butter', icon: '🧈', unit: 'sticks', basePrice: 0.75, description: 'Fresh dairy butter' },
       { id: 'eggs', name: 'Fresh Eggs', icon: '🥚', unit: 'eggs', basePrice: 0.25, description: 'Farm-fresh eggs' },
-      { id: 'sugar', name: 'Granulated Sugar', icon: '🍚', unit: 'cups', basePrice: 0.40, description: 'Pure white sugar' },
+      { id: 'sugar', name: 'Granulated Sugar', icon: '🍚', unit: 'teaspoons', basePrice: 0.02, description: 'Pure white sugar' },
       { id: 'vanilla', name: 'Vanilla Extract', icon: '🍦', unit: 'tsp', basePrice: 1.20, description: 'Pure vanilla extract' },
       { id: 'chocolate', name: 'Chocolate Chips', icon: '🍫', unit: 'cups', basePrice: 2.00, description: 'Premium chocolate chips' }
     ];
