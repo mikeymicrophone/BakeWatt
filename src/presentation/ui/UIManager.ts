@@ -56,6 +56,29 @@ export class UIManager {
       });
     }
 
+    // --- Recipe scaling buttons ---
+    const halveBtn = document.getElementById('btn-halve-recipe');
+    const doubleBtn = document.getElementById('btn-double-recipe');
+    const resetBtn = document.getElementById('btn-reset-recipe');
+
+    if (halveBtn) {
+      halveBtn.addEventListener('click', () => {
+        this.app.scaleRecipe(0.5);
+      });
+    }
+
+    if (doubleBtn) {
+      doubleBtn.addEventListener('click', () => {
+        this.app.scaleRecipe(2);
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.app.resetRecipeScaling();
+      });
+    }
+
     // Close modal when clicking outside
     if (modal) {
       modal.addEventListener('click', (e) => {
