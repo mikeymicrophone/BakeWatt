@@ -105,7 +105,13 @@ export class Application {
 
   // Helper methods for UIManager
   public formatAmount(amount: number): string {
-    return Number(amount.toFixed(1)).toString();
+    if (this._advancedMode) {
+      // Show up to 1 decimal place, remove trailing zeros
+      return (Math.round(amount * 10) / 10).toString();
+    } else {
+      // Round to nearest whole number for basic mode
+      return Math.round(amount).toString();
+    }
   }
 
   public calculateTotalCost(basePrice: number, quantity: number): number {
@@ -282,23 +288,6 @@ export class Application {
   }
 
 
-  private setupTabNavigation(): void {
-    const mathTab = document.getElementById('math-tab') as HTMLButtonElement;
-    const transferTab = document.getElementById('transfer-tab') as HTMLButtonElement;
-    const recipesTab = document.getElementById('recipes-tab') as HTMLButtonElement;
-    const supplierTab = document.getElementById('supplier-tab') as HTMLButtonElement;
-    const storeTab = document.getElementById('store-tab') as HTMLButtonElement;
-
-    if (!mathTab || !transferTab || !recipesTab || !supplierTab || !storeTab) {
-      throw new Error('Tab navigation elements not found');
-    }
-
-    mathTab.addEventListener('click', () => this.switchToTab('math'));
-    transferTab.addEventListener('click', () => this.switchToTab('transfer'));
-    recipesTab.addEventListener('click', () => this.switchToTab('recipes'));
-    supplierTab.addEventListener('click', () => this.switchToTab('supplier'));
-    storeTab.addEventListener('click', () => this.switchToTab('store'));
-  }
 
   @action
   public switchToTab(tabName: string): void {
@@ -459,15 +448,6 @@ export class Application {
    * Advanced mode: shows decimals (e.g., 1.5, 2.75)
    * Basic mode: rounds to whole numbers (e.g., 2, 3)
    */
-  private formatAmount(amount: number): string {
-    if (this._advancedMode) {
-      // Show up to 1 decimal place, remove trailing zeros
-      return (Math.round(amount * 10) / 10).toString();
-    } else {
-      // Round to nearest whole number for basic mode
-      return Math.round(amount).toString();
-    }
-  }
 
   private refreshCurrentDisplays(): void {
     // Refresh recipe details modal if open
@@ -487,60 +467,6 @@ export class Application {
     // Production interface updates are now handled by ProductionService
   }
 
-  private setupRecipeDetailsModal(): void {
-    const modal = document.getElementById('recipe-details-modal');
-    const closeBtn = document.getElementById('recipe-details-close');
-    
-    console.log('Setting up recipe details modal:', { modal: !!modal, closeBtn: !!closeBtn });
-    
-    if (!modal || !closeBtn) {
-      console.error('Recipe details modal elements not found:', { modal: !!modal, closeBtn: !!closeBtn });
-      return;
-    }
-
-    // Close modal when clicking close button
-    closeBtn.addEventListener('click', () => {
-      console.log('Recipe details close button clicked');
-      this.hideRecipeDetails();
-    });
-
-    // Close modal when clicking outside the content
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        this.hideRecipeDetails();
-      }
-    });
-
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal.style.display === 'flex') {
-        this.hideRecipeDetails();
-      }
-    });
-
-    // Recipe scaling controls
-    const doubleBtn = document.getElementById('btn-double-recipe');
-    const halveBtn = document.getElementById('btn-halve-recipe');
-    const resetBtn = document.getElementById('btn-reset-recipe');
-
-    if (doubleBtn) {
-      doubleBtn.addEventListener('click', () => {
-        this.scaleRecipe(2);
-      });
-    }
-
-    if (halveBtn) {
-      halveBtn.addEventListener('click', () => {
-        this.scaleRecipe(0.5);
-      });
-    }
-
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        this.resetRecipeScaling();
-      });
-    }
-  }
 
   @action
   public showRecipeDetails(recipeId: string): void {
@@ -961,22 +887,6 @@ export class Application {
 
 
 
-  private setupCookingInterface(): void {
-    const cancelBtn = document.getElementById('btn-cancel-cooking');
-    const proceedBtn = document.getElementById('btn-proceed');
-
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => {
-        this.cancelCooking();
-      });
-    }
-
-    if (proceedBtn) {
-      proceedBtn.addEventListener('click', () => {
-        this.proceedToNextStep();
-      });
-    }
-  }
 
   @action
   public startCooking(recipeId: string): void {
@@ -1641,68 +1551,8 @@ export class Application {
     resultDiv.style.display = 'block';
   }
 
-  private setupProductionInterface(): void {
-    const finishBtn = document.getElementById('btn-finish-production');
-    const backBtn = document.getElementById('btn-back-to-cooking');
-    const cuttingSlider = document.getElementById('cutting-slider') as HTMLInputElement;
-    const packagingSlider = document.getElementById('packaging-slider') as HTMLInputElement;
-
-    if (finishBtn) {
-      finishBtn.addEventListener('click', () => {
-        this.productionService.finishProduction();
-      });
-    }
-
-    if (backBtn) {
-      backBtn.addEventListener('click', () => {
-        this.productionService.hideProductionInterface();
-      });
-    }
-
-    if (cuttingSlider) {
-      cuttingSlider.addEventListener('input', (e) => {
-        const value = parseInt((e.target as HTMLInputElement).value);
-        this.productionService.updateCuttingAmount(value);
-      });
-    }
-
-    if (packagingSlider) {
-      packagingSlider.addEventListener('input', (e) => {
-        const value = parseInt((e.target as HTMLInputElement).value);
-        this.productionService.updatePackagingAmount(value);
-      });
-    }
-  }
 
 
-  private setupStoreInterface(): void {
-    const closeBtn = document.getElementById('btn-close-store');
-    const locationSelect = document.getElementById('location-select') as HTMLSelectElement;
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        this.switchToTab('recipes');
-      });
-    }
-
-    if (locationSelect) {
-      locationSelect.addEventListener('change', (e) => {
-        const newLocation = (e.target as HTMLSelectElement).value as any;
-        this._gameState.store.updateLocation(newLocation);
-        this.updateStoreDisplay();
-      });
-    }
-  }
-
-  private setupSupplierInterface(): void {
-    const closeBtn = document.getElementById('btn-close-supplier');
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        this.switchToTab('recipes');
-      });
-    }
-  }
 
   @action
   public buyIngredient(ingredientId: string, amount: number, price: number): void {
