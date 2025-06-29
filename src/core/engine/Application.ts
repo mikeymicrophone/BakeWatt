@@ -782,8 +782,8 @@ export class Application {
               const scaledRecommended = (range.recommended || range.min) * recipeScaling.scalingFactor;
               amountDisplay = `${this.formatAmount(scaledMin)}-${this.formatAmount(scaledMax)} ${ingredient.unit} (recommended: ${this.formatAmount(scaledRecommended)})`;
               requiredAmount = scaledRecommended;
-              if (flexIngredient.notes) {
-                notes = `<div class="ingredient-notes">${flexIngredient.notes}</div>`;
+              if (flexIngredient.description) {
+                notes = `<div class="ingredient-notes">${flexIngredient.description}</div>`;
               }
             }
             
@@ -994,50 +994,322 @@ export class Application {
     this.updateProceedButton();
   }
 
+  /**
+   * Calculate grid dimensions for an amount, favoring squares for upper bounds
+   * Upper bound: favor square-like dimensions (e.g., 20 -> 5x4 not 2x10)
+   * Lower bound: use smaller factor if it fits within upper bound grid
+   */
+  private calculateGridDimensions(amount: number, isUpperBound: boolean = false): { rows: number; columns: number } {
+    if (amount <= 0) return { rows: 1, columns: 1 };
+    
+    if (isUpperBound) {
+      // For upper bound, favor square-like dimensions
+      const sqrt = Math.sqrt(amount);
+      const rows = Math.floor(sqrt);
+      const columns = Math.ceil(amount / rows);
+      return { rows, columns };
+    } else {
+      // For lower bound, use smaller factors that fit within a reasonable grid
+      for (let rows = 1; rows <= Math.sqrt(amount); rows++) {
+        if (amount % rows === 0) {
+          return { rows, columns: amount / rows };
+        }
+      }
+      // Fallback if no perfect factor found
+      const rows = Math.floor(Math.sqrt(amount));
+      const columns = Math.ceil(amount / rows);
+      return { rows, columns };
+    }
+  }
+
+  /**
+   * Generate HTML for a visual grid showing ingredient amounts
+   */
+  private generateIngredientGrid(minAmount: number, maxAmount: number, currentAmount: number): string {
+    const upperDims = this.calculateGridDimensions(maxAmount, true);
+    const lowerDims = this.calculateGridDimensions(minAmount, false);
+    
+    // Use the upper bound dimensions for the grid size
+    const gridRows = upperDims.rows;
+    const gridCols = upperDims.columns;
+    
+    let gridHTML = '<div class="ingredient-grid" style="display: grid; grid-template-columns: repeat(' + gridCols + ', 1fr); gap: 2px; margin: 10px 0;">';
+    
+    for (let i = 0; i < gridRows * gridCols; i++) {
+      let cellClass = 'grid-cell';
+      
+      if (i < minAmount) {
+        cellClass += ' min-amount';
+      } else if (i < maxAmount) {
+        cellClass += ' max-amount';
+      } else {
+        cellClass += ' empty';
+      }
+      
+      if (i < currentAmount) {
+        cellClass += ' selected';
+      }
+      
+      gridHTML += `<div class="${cellClass}"></div>`;
+    }
+    
+    gridHTML += '</div>';
+    return gridHTML;
+  }
+
+  /**
+   * Generate HTML for flexible ingredient grid with custom dimensions
+   */
+  private generateFlexibleIngredientGrid(minAmount: number, maxAmount: number, currentAmount: number, width: number, height: number): string {
+    const totalCells = width * height;
+    const selectedAmount = Math.min(currentAmount, totalCells);
+    
+    let gridHTML = `<div class="flexible-ingredient-grid" style="display: grid; grid-template-columns: repeat(${width}, 1fr); gap: 3px; margin: 10px 0; aspect-ratio: ${width}/${height};">`;
+    
+    for (let i = 0; i < totalCells; i++) {
+      let cellClass = 'grid-cell';
+      
+      if (i < minAmount) {
+        cellClass += ' min-required';
+      } else if (i < maxAmount) {
+        cellClass += ' max-allowed';
+      } else {
+        cellClass += ' empty';
+      }
+      
+      if (i < selectedAmount) {
+        cellClass += ' selected';
+      }
+      
+      gridHTML += `<div class="${cellClass}" data-cell-index="${i}"></div>`;
+    }
+    
+    gridHTML += '</div>';
+    return gridHTML;
+  }
+
+  /**
+   * Update ingredient grid when sliders change
+   */
+  @action
+  public updateIngredientGrid(ingredientId: string): void {
+    const widthSlider = document.getElementById(`width-slider-${ingredientId}`) as HTMLInputElement;
+    const heightSlider = document.getElementById(`height-slider-${ingredientId}`) as HTMLInputElement;
+    const widthValue = document.getElementById(`width-value-${ingredientId}`);
+    const heightValue = document.getElementById(`height-value-${ingredientId}`);
+    const amountDisplay = document.getElementById(`flexible-amount-${ingredientId}`);
+    const gridContainer = document.getElementById(`grid-container-${ingredientId}`);
+    
+    if (!widthSlider || !heightSlider || !gridContainer) return;
+    
+    const width = parseInt(widthSlider.value);
+    const height = parseInt(heightSlider.value);
+    const selectedAmount = width * height;
+    
+    // Update slider value displays
+    if (widthValue) widthValue.textContent = width.toString();
+    if (heightValue) heightValue.textContent = height.toString();
+    
+    // Update amount display
+    if (amountDisplay) amountDisplay.textContent = this.formatAmount(selectedAmount);
+    
+    // Find the current step and ingredient to get min/max bounds
+    const currentStep = this._currentRecipe?.getStep(this._currentStep);
+    if (!currentStep) return;
+    
+    const flexIngredient = currentStep.ingredients.find((fi: any) => fi.ingredient.id === ingredientId);
+    if (!flexIngredient || !flexIngredient.range) return;
+    
+    const range = flexIngredient.range;
+    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+    
+    // Update grid display
+    gridContainer.innerHTML = this.generateFlexibleIngredientGrid(scaledMin, scaledMax, selectedAmount, width, height);
+  }
+
+  /**
+   * Transfer flexible ingredient with selected amount
+   */
+  @action
+  public transferFlexibleIngredient(ingredientId: string): void {
+    const widthSlider = document.getElementById(`width-slider-${ingredientId}`) as HTMLInputElement;
+    const heightSlider = document.getElementById(`height-slider-${ingredientId}`) as HTMLInputElement;
+    
+    if (!widthSlider || !heightSlider) return;
+    
+    const width = parseInt(widthSlider.value);
+    const height = parseInt(heightSlider.value);
+    const selectedAmount = width * height;
+    
+    const availableInPantry = this._gameState.pantry.getStock(ingredientId);
+    
+    if (availableInPantry < selectedAmount) {
+      alert(`Not enough ${ingredientId} in pantry! Available: ${availableInPantry}, needed: ${selectedAmount}`);
+      return;
+    }
+
+    // Check if amount is within valid range
+    const currentStep = this._currentRecipe?.getStep(this._currentStep);
+    if (!currentStep) return;
+    
+    const flexIngredient = currentStep.ingredients.find((fi: any) => fi.ingredient.id === ingredientId);
+    if (!flexIngredient || !flexIngredient.range) return;
+    
+    const range = flexIngredient.range;
+    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+    
+    if (selectedAmount < scaledMin) {
+      alert(`Amount too low! Minimum required: ${scaledMin} ${flexIngredient.ingredient.unit}`);
+      return;
+    }
+    
+    if (selectedAmount > scaledMax) {
+      alert(`Amount too high! Maximum allowed: ${scaledMax} ${flexIngredient.ingredient.unit}`);
+      return;
+    }
+
+    // Remove from pantry
+    this._gameState.pantry.removeIngredient(ingredientId, selectedAmount);
+    
+    // Add to baking counter
+    const currentAmount = this._bakingCounter.get(ingredientId) || 0;
+    this._bakingCounter.set(ingredientId, currentAmount + selectedAmount);
+
+    console.log(`🔄 Transferred ${selectedAmount} ${ingredientId} to baking counter (${width}×${height} grid)`);
+
+    // Update displays
+    if (currentStep) {
+      this.populateIngredientZones(currentStep);
+      this.updateBakingCounter();
+      this.updateProceedButton();
+    }
+  }
+
   private populateIngredientZones(step: any): void {
     const zonesEl = document.getElementById('ingredient-zones-list');
     if (!zonesEl) return;
 
     let zonesHTML = '';
 
-    step.ingredients.forEach((flexIngredient: any) => {
+    step.ingredients.forEach((flexIngredient: any, index: number) => {
       const ingredient = flexIngredient.ingredient;
-      const baseAmount = flexIngredient.isFixed ? 
-        flexIngredient.fixedAmount : 
-        flexIngredient.range?.recommended || flexIngredient.range?.min || 0;
-      
-      // Apply scaling factor from recipe details modal
-      const neededAmount = baseAmount * this._currentRecipeScalingFactor;
-      
       const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
       const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
-      const isTransferred = transferredAmount >= neededAmount;
-      const canTransfer = availableInPantry >= neededAmount && !isTransferred;
+      
+      if (flexIngredient.isFixed) {
+        // Fixed ingredient - use traditional transfer system
+        const baseAmount = flexIngredient.fixedAmount;
+        const neededAmount = baseAmount * this._currentRecipeScalingFactor;
+        const isTransferred = transferredAmount >= neededAmount;
+        const canTransfer = availableInPantry >= neededAmount && !isTransferred;
 
-      zonesHTML += `
-        <div class="ingredient-zone ${isTransferred ? 'transferred' : 'needed'}">
-          <div class="ingredient-zone-header">
-            <div class="ingredient-zone-name">
-              <span>${ingredient.icon}</span>
-              <span>${ingredient.name}</span>
+        zonesHTML += `
+          <div class="ingredient-zone ${isTransferred ? 'transferred' : 'needed'}">
+            <div class="ingredient-zone-header">
+              <div class="ingredient-zone-name">
+                <span>${ingredient.icon}</span>
+                <span>${ingredient.name}</span>
+              </div>
+              <div class="ingredient-zone-amount">${this.formatAmount(neededAmount)} ${ingredient.unit}</div>
             </div>
-            <div class="ingredient-zone-amount">${this.formatAmount(neededAmount)} ${ingredient.unit}</div>
+            <div class="ingredient-zone-status">
+              ${isTransferred ? 
+                '✅ Transferred to counter' : 
+                `Available: ${availableInPantry} ${ingredient.unit}`
+              }
+            </div>
+            <div class="ingredient-zone-transfer">
+              <button class="btn-transfer" 
+                ${canTransfer ? '' : 'disabled'} 
+                onclick="window.appInstance.transferIngredient('${ingredient.id}', ${neededAmount})">
+                ${isTransferred ? 'Transferred' : 'Transfer to Counter'}
+              </button>
+            </div>
           </div>
-          <div class="ingredient-zone-status">
-            ${isTransferred ? 
-              '✅ Transferred to counter' : 
-              `Available: ${availableInPantry} ${ingredient.unit}`
-            }
+        `;
+      } else if (flexIngredient.range) {
+        // Flexible ingredient - use grid-based selection system
+        const range = flexIngredient.range;
+        const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+        const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+        const scaledRecommended = Math.ceil((range.recommended || range.min) * this._currentRecipeScalingFactor);
+        
+        // Start with recommended amount if nothing transferred yet
+        const currentAmount = transferredAmount || scaledRecommended;
+        const isTransferred = transferredAmount > 0;
+        const canTransfer = availableInPantry >= scaledMin && !isTransferred;
+
+        zonesHTML += `
+          <div class="ingredient-zone flexible ${isTransferred ? 'transferred' : 'needed'}" data-ingredient-id="${ingredient.id}">
+            <div class="ingredient-zone-header">
+              <div class="ingredient-zone-name">
+                <span>${ingredient.icon}</span>
+                <span>${ingredient.name}</span>
+              </div>
+              <div class="ingredient-zone-amount flexible-amount">
+                <span id="flexible-amount-${ingredient.id}">${this.formatAmount(currentAmount)}</span> ${ingredient.unit}
+                <small>(${this.formatAmount(scaledMin)}-${this.formatAmount(scaledMax)} range)</small>
+              </div>
+            </div>
+            
+            ${!isTransferred ? `
+            <div class="grid-control-section">
+              <div class="grid-sliders">
+                <div class="slider-group">
+                  <label>Grid Width (1-10):</label>
+                  <input type="range" class="grid-slider" id="width-slider-${ingredient.id}" 
+                         min="1" max="10" value="5" 
+                         onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
+                  <span id="width-value-${ingredient.id}">5</span>
+                </div>
+                <div class="slider-group">
+                  <label>Grid Height (1-10):</label>
+                  <input type="range" class="grid-slider" id="height-slider-${ingredient.id}" 
+                         min="1" max="10" value="4" 
+                         onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
+                  <span id="height-value-${ingredient.id}">4</span>
+                </div>
+              </div>
+              
+              <div class="ingredient-grid-container" id="grid-container-${ingredient.id}">
+                ${this.generateFlexibleIngredientGrid(scaledMin, scaledMax, currentAmount, 5, 4)}
+              </div>
+              
+              <div class="grid-legend">
+                <div class="legend-item">
+                  <div class="legend-color min-required"></div>
+                  <span>Minimum Required (${this.formatAmount(scaledMin)})</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color max-allowed"></div>
+                  <span>Maximum Allowed (${this.formatAmount(scaledMax)})</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color selected"></div>
+                  <span>Current Selection</span>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+            
+            <div class="ingredient-zone-status">
+              ${isTransferred ? 
+                '✅ Transferred to counter' : 
+                `Available: ${availableInPantry} ${ingredient.unit}`
+              }
+            </div>
+            <div class="ingredient-zone-transfer">
+              <button class="btn-transfer" 
+                ${canTransfer ? '' : 'disabled'} 
+                onclick="window.appInstance.transferFlexibleIngredient('${ingredient.id}')">
+                ${isTransferred ? 'Transferred' : 'Transfer Selected Amount'}
+              </button>
+            </div>
           </div>
-          <div class="ingredient-zone-transfer">
-            <button class="btn-transfer" 
-              ${canTransfer ? '' : 'disabled'} 
-              onclick="window.appInstance.transferIngredient('${ingredient.id}', ${neededAmount})">
-              ${isTransferred ? 'Transferred' : 'Transfer to Counter'}
-            </button>
-          </div>
-        </div>
-      `;
+        `;
+      }
     });
 
     zonesEl.innerHTML = zonesHTML;
@@ -2210,7 +2482,7 @@ export class Application {
       { id: 'eggs', name: 'Fresh Eggs', icon: '🥚', unit: 'eggs', basePrice: 0.25, description: 'Farm-fresh eggs' },
       { id: 'sugar', name: 'Granulated Sugar', icon: '🍚', unit: 'teaspoons', basePrice: 0.02, description: 'Pure white sugar' },
       { id: 'vanilla', name: 'Vanilla Extract', icon: '🍦', unit: 'tsp', basePrice: 1.20, description: 'Pure vanilla extract' },
-      { id: 'chocolate', name: 'Chocolate Chips', icon: '🍫', unit: 'cups', basePrice: 2.00, description: 'Premium chocolate chips' }
+      { id: 'chocolate', name: 'Chocolate Chips', icon: '🍫', unit: 'pieces', basePrice: 0.10, description: 'Premium chocolate chips' }
     ];
   }
 
