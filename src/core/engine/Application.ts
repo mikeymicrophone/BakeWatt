@@ -1963,6 +1963,74 @@ export class Application {
     }
   }
 
+  @action
+  public buyIngredient(ingredientId: string, amount: number, price: number): void {
+    let totalCost = amount * price;
+    if (amount === 10) {
+      totalCost *= 0.85;
+    } else if (amount === 100) {
+      totalCost *= 0.7;
+    }
+
+    if (this._gameState.money < totalCost) {
+      this.showSalesNotification('Not enough money!', false);
+      return;
+    }
+
+    this._gameState.money -= totalCost;
+    this._gameState.pantry.addIngredient(ingredientId, amount);
+
+    this._supplierStats.todaysOrders++;
+    this.showSalesNotification(`Purchased ${amount} ${ingredientId} for ${totalCost.toFixed(2)}`);
+
+    this.updateSupplierDisplay();
+    this.populateRecipeCollection(); // Refresh recipe craftability
+  }
+
+  private updateSupplierDisplay(): void {
+    const availableCoinsEl = document.getElementById('available-coins');
+    const todaysOrdersEl = document.getElementById('todays-orders');
+    const bulkSavingsEl = document.getElementById('bulk-savings');
+    const supplierGridEl = document.getElementById('supplier-items-grid');
+
+    if (availableCoinsEl) {
+      availableCoinsEl.textContent = `${this._gameState.money.toFixed(2)}`;
+    }
+    if (todaysOrdersEl) {
+      todaysOrdersEl.textContent = this._supplierStats.todaysOrders.toString();
+    }
+    if (bulkSavingsEl) {
+      bulkSavingsEl.textContent = `${this._supplierStats.bulkSavings.toFixed(2)}`;
+    }
+
+    if (supplierGridEl) {
+      supplierGridEl.innerHTML = '';
+      const ingredients = this.ingredientService.getAllIngredients();
+
+      ingredients.forEach(ingredient => {
+        const price = ingredient.basePrice || 0.5;
+        const canAfford = this._gameState.money >= price;
+
+        const itemCard = document.createElement('div');
+        itemCard.className = 'supplier-item-card';
+        itemCard.innerHTML = `
+          <div class="item-header">
+            <div class="item-icon">${ingredient.icon}</div>
+            <div class="item-name">${ingredient.name}</div>
+            <div class="item-price">${price.toFixed(2)}</div>
+          </div>
+          <div class="item-description">${(ingredient as any).description || 'A basic ingredient.'}</div>
+          <div class="item-actions">
+            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 1, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 1</button>
+            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 10, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 10 (15% off)</button>
+            <button class="btn-buy" onclick="window.appInstance.buyIngredient('${ingredient.id}', 100, ${price})" ${!canAfford ? 'disabled' : ''}>Buy 100 (30% off)</button>
+          </div>
+        `;
+        supplierGridEl.appendChild(itemCard);
+      });
+    }
+  }
+
   private setupRecipeControls(): void {
     const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
     const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;

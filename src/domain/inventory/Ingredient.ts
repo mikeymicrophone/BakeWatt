@@ -5,7 +5,8 @@ export class Ingredient {
     public readonly id: string,
     public readonly name: string,
     public readonly defaultUnit: string,
-    public readonly icon: string = ''
+    public readonly icon: string = '',
+    public readonly basePrice: number = 0.5
   ) {
     if (!id || id.trim().length === 0) {
       throw new Error('Ingredient id cannot be empty');
@@ -98,10 +99,10 @@ export class Ingredient {
 }
 
 export const STARTER_INGREDIENTS = {
-  FLOUR: new Ingredient('flour', 'Flour', 'cups', '🌾'),
-  BUTTER: new Ingredient('butter', 'Butter', 'sticks', '🧈'),
-  EGGS: new Ingredient('eggs', 'Eggs', 'pieces', '🥚'),
-  SUGAR: new Ingredient('sugar', 'Sugar', 'teaspoons', '🍯'),
-  CHOCOLATE: new Ingredient('chocolate', 'Chocolate', 'pieces', '🍫'),
-  VANILLA: new Ingredient('vanilla', 'Vanilla', 'teaspoons', '🌿')
+  FLOUR: new Ingredient('flour', 'Flour', 'cups', '🌾', 0.5),
+  BUTTER: new Ingredient('butter', 'Butter', 'sticks', '🧈', 1.2),
+  EGGS: new Ingredient('eggs', 'Eggs', 'pieces', '🥚', 0.8),
+  SUGAR: new Ingredient('sugar', 'Sugar', 'teaspoons', '🍯', 0.2),
+  CHOCOLATE: new Ingredient('chocolate', 'Chocolate', 'pieces', '🍫', 2.5),
+  VANILLA: new Ingredient('vanilla', 'Vanilla', 'teaspoons', '🌿', 3.0)
 } as const;
