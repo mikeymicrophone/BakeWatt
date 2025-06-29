@@ -20,9 +20,11 @@ export class GameStateFactory {
     pantry.addIngredient(STARTER_INGREDIENTS.CHOCOLATE.id, 50);  // 50 pieces chocolate
     pantry.addIngredient(STARTER_INGREDIENTS.VANILLA.id, 10);    // 10 grams vanilla
 
-    // Create recipe collection with starter recipe
+    // Create recipe collection with all available recipes
     const recipes = new RecipeCollection();
-    recipes.addRecipe(RecipeLibrary.getStarterRecipe()); // Simple Cookies
+    RecipeLibrary.getAllRecipes().forEach(recipe => {
+      recipes.addRecipe(recipe);
+    });
 
     // Create empty store
     const store = new Store();
