@@ -10,6 +10,18 @@ export interface RecipeStepMetadata {
   instructions: string[];
 }
 
+export interface IngredientGroup {
+  name: string;
+  ingredients: FlexibleIngredient[];
+  description?: string; // e.g., "wet ingredients", "dry ingredients"
+}
+
+export interface StepParameters {
+  temp?: number;
+  time?: number;
+  [key: string]: any; // Custom parameters like "mixingSpeed", "restTime"
+}
+
 export enum StepType {
   Preparation = 'preparation',   // Mixing, chopping, etc.
   Baking = 'baking',            // Oven work
@@ -28,11 +40,15 @@ export class RecipeStep {
   public readonly instructions: ReadonlyArray<string>;
   public readonly estimatedTime?: number;
   public readonly temperature?: number;
+  public readonly groups: ReadonlyArray<IngredientGroup>;
+  public readonly parameters: StepParameters;
 
   constructor(
     metadata: RecipeStepMetadata,
     type: StepType,
-    ingredients: FlexibleIngredient[] = []
+    ingredients: FlexibleIngredient[] = [],
+    parameters: StepParameters = {},
+    groups: IngredientGroup[] = []
   ) {
     // Validation
     if (!metadata.id || metadata.id.trim().length === 0) {
@@ -60,6 +76,8 @@ export class RecipeStep {
     this.instructions = Object.freeze([...metadata.instructions]);
     this.estimatedTime = metadata.estimatedTime;
     this.temperature = metadata.temperature;
+    this.groups = Object.freeze([...groups]);
+    this.parameters = { ...parameters };
   }
 
   /**
@@ -91,6 +109,18 @@ export class RecipeStep {
   public scale(factor: number): RecipeStep {
     const scaledIngredients = this.ingredients.map(ingredient => ingredient.scale(factor));
     
+    // Scale ingredients in groups
+    const scaledGroups = this.groups.map(group => ({
+      ...group,
+      ingredients: group.ingredients.map(ingredient => ingredient.scale(factor))
+    }));
+    
+    // Scale numeric parameters that make sense to scale
+    const scaledParameters = { ...this.parameters };
+    if (scaledParameters.time) {
+      scaledParameters.time = Math.round(scaledParameters.time * factor);
+    }
+    
     const scaledMetadata: RecipeStepMetadata = {
       id: this.id,
       name: this.name,
@@ -101,7 +131,7 @@ export class RecipeStep {
       instructions: [...this.instructions]
     };
 
-    return new RecipeStep(scaledMetadata, this.type, scaledIngredients);
+    return new RecipeStep(scaledMetadata, this.type, scaledIngredients, scaledParameters, scaledGroups);
   }
 
   /**
@@ -135,7 +165,7 @@ export class RecipeStep {
   }
 
   /**
-   * Get formatted instructions with ingredient amounts
+   * Get formatted instructions with ingredient amounts and template parameters
    */
   public getFormattedInstructions(customAmounts?: Map<string, number>): string[] {
     const amounts = this.getIngredientAmounts(customAmounts);
@@ -143,7 +173,33 @@ export class RecipeStep {
     return this.instructions.map(instruction => {
       let formatted = instruction;
       
-      // Replace ingredient placeholders with actual amounts
+      // Replace parameter placeholders
+      if (this.parameters.temp !== undefined) {
+        formatted = formatted.replace(/{temp}/g, this.parameters.temp.toString());
+      }
+      if (this.parameters.time !== undefined) {
+        formatted = formatted.replace(/{time}/g, this.parameters.time.toString());
+      }
+      
+      // Replace custom parameter placeholders
+      Object.entries(this.parameters).forEach(([key, value]) => {
+        if (key !== 'temp' && key !== 'time' && value !== undefined) {
+          const placeholder = new RegExp(`{${key}}`, 'g');
+          formatted = formatted.replace(placeholder, value.toString());
+        }
+      });
+      
+      // Replace ingredient group placeholders
+      this.groups.forEach(group => {
+        const placeholder = new RegExp(`{group:${group.name}}`, 'g');
+        const ingredientList = group.ingredients.map(ingredient => {
+          const amount = amounts.get(ingredient.ingredient.id) || ingredient.getDefaultAmount();
+          return `${amount} ${ingredient.ingredient.unit} ${ingredient.ingredient.name}`;
+        }).join(', ');
+        formatted = formatted.replace(placeholder, ingredientList);
+      });
+      
+      // Replace individual ingredient placeholders (existing functionality)
       this.ingredients.forEach(ingredient => {
         const amount = amounts.get(ingredient.ingredient.id);
         const placeholder = `{${ingredient.ingredient.id}}`;
@@ -153,5 +209,67 @@ export class RecipeStep {
       
       return formatted;
     });
+  }
+
+  /**
+   * Get a specific ingredient group by name
+   */
+  public getGroup(groupName: string): IngredientGroup | null {
+    return this.groups.find(group => group.name === groupName) || null;
+  }
+
+  /**
+   * Check if step has a specific group
+   */
+  public hasGroup(groupName: string): boolean {
+    return this.groups.some(group => group.name === groupName);
+  }
+
+  /**
+   * Get all ingredients from groups and individual ingredients combined
+   */
+  public getAllIngredients(): FlexibleIngredient[] {
+    const groupIngredients = this.groups.flatMap(group => group.ingredients);
+    return [...this.ingredients, ...groupIngredients];
+  }
+
+  /**
+   * Get ingredient amounts for all ingredients including those in groups
+   */
+  public getAllIngredientAmounts(customAmounts?: Map<string, number>): Map<string, number> {
+    const amounts = new Map<string, number>();
+    
+    // Add individual ingredients
+    this.ingredients.forEach(ingredient => {
+      const customAmount = customAmounts?.get(ingredient.ingredient.id);
+      amounts.set(ingredient.ingredient.id, ingredient.getAmount(customAmount));
+    });
+    
+    // Add group ingredients
+    this.groups.forEach(group => {
+      group.ingredients.forEach(ingredient => {
+        const customAmount = customAmounts?.get(ingredient.ingredient.id);
+        const currentAmount = amounts.get(ingredient.ingredient.id) || 0;
+        amounts.set(ingredient.ingredient.id, currentAmount + ingredient.getAmount(customAmount));
+      });
+    });
+    
+    return amounts;
+  }
+
+  /**
+   * Get summary of step parameters for display
+   */
+  public getParameterSummary(): string {
+    const parts: string[] = [];
+    
+    if (this.parameters.temp) {
+      parts.push(`${this.parameters.temp}°F`);
+    }
+    if (this.parameters.time) {
+      parts.push(`${this.parameters.time}min`);
+    }
+    
+    return parts.join(' | ');
   }
 }
