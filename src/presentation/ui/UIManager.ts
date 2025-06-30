@@ -626,6 +626,9 @@ export class UIManager {
         
         <div class="store-item-actions">
           <div class="sell-controls">
+            <button class="btn-pricing-info" onclick="window.appInstance.showPricingInfo('${item.id}')">
+              Pricing Info
+            </button>
             <input type="number" class="sell-quantity-input" value="1" min="1" max="${item.quantity}" id="sell-qty-${item.id}">
             <button class="btn-sell" onclick="window.appInstance.sellItem('${item.id}')" ${item.quantity === 0 ? 'disabled' : ''}>
               Sell
@@ -1143,5 +1146,312 @@ export class UIManager {
     } else {
       console.error('❌ Packaging slider or value display not found');
     }
+  }
+
+  /**
+   * Display a modal explaining the pricing breakdown for a store item.
+   */
+  /**
+   * Format factor name for display
+   */
+  private formatFactorName(key: string): string {
+    const names: Record<string, string> = {
+      timeOfDay: 'Time of Day',
+      demand: 'Market Demand',
+      location: 'Location',
+      seasonal: 'Seasonal',
+      freshness: 'Freshness'
+    };
+    return names[key] || key.charAt(0).toUpperCase() + key.slice(1);
+  }
+
+  /**
+   * Format category name for display
+   */
+  private formatCategoryName(category: string): string {
+    const names: Record<string, string> = {
+      'baked_goods': 'Baked Goods',
+      'packages': 'Recipe Package',
+      'ingredients': 'Ingredient'
+    };
+    return names[category] || category;
+  }
+
+  /**
+   * Get ingredient cost breakdown for recipe packages
+   */
+  private getIngredientCostBreakdown(item: any): string {
+    if (item.category !== 'packages' || !item.recipeId) return '';
+    
+    // This would need to interface with the recipe service to get actual ingredient costs
+    // For now, return a placeholder structure
+    return `
+      <div class="ingredient-breakdown">
+        <h3>Ingredient Costs</h3>
+        <div class="ingredient-note">
+          <em>Recipe ingredient costs contribute to the base price calculation.</em>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Add CSS styles for the enhanced pricing modal
+   */
+  private addPricingModalStyles(): void {
+    const existingStyle = document.getElementById('pricing-modal-styles');
+    if (existingStyle) return;
+
+    const style = document.createElement('style');
+    style.id = 'pricing-modal-styles';
+    style.textContent = `
+      .pricing-modal {
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e0e0e0;
+      }
+      .item-icon {
+        font-size: 2.5rem;
+      }
+      .item-title h2 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+      .item-category {
+        color: #666;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .pricing-summary {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      .price-row:last-child {
+        margin-bottom: 0;
+      }
+      .base-price {
+        font-size: 0.95rem;
+        color: #666;
+      }
+      .current-price {
+        font-size: 1.1rem;
+        font-weight: bold;
+      }
+      .price-change {
+        font-size: 0.9rem;
+        padding-top: 5px;
+        border-top: 1px solid #ddd;
+      }
+      .pricing-factors {
+        margin-bottom: 20px;
+      }
+      .pricing-factors h3 {
+        margin-bottom: 10px;
+        color: #333;
+      }
+      .pricing-modifiers-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      .pricing-modifiers-table th {
+        background: #e9ecef;
+        padding: 10px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+      }
+      .pricing-modifiers-table td {
+        padding: 12px 10px;
+        border-top: 1px solid #dee2e6;
+      }
+      .factor-name {
+        font-weight: 600;
+        color: #333;
+      }
+      .factor-explanation {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 2px;
+      }
+      .factor-effect {
+        font-weight: bold;
+        font-size: 1rem;
+      }
+      .factor-multiplier {
+        font-size: 0.8rem;
+        color: #666;
+      }
+      .ingredient-breakdown {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f1f8ff;
+        border-radius: 6px;
+        border-left: 4px solid #0366d6;
+      }
+      .ingredient-breakdown h3 {
+        margin-top: 0;
+        color: #0366d6;
+      }
+      .ingredient-note {
+        color: #586069;
+        font-size: 0.9rem;
+      }
+      .pricing-tips {
+        background: #fff3cd;
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 4px solid #ffc107;
+      }
+      .pricing-tips h3 {
+        margin-top: 0;
+        color: #856404;
+      }
+      .pricing-tips ul {
+        margin-bottom: 0;
+        padding-left: 20px;
+      }
+      .pricing-tips li {
+        margin-bottom: 6px;
+        color: #856404;
+      }
+      .positive { color: #28a745; }
+      .negative { color: #dc3545; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  public showPricingInfoModal(item: any, currentPrice: number, modifiers: Record<string, number>): void {
+    // Remove previous instance
+    const existing = document.getElementById('pricing-info-modal');
+    if (existing) existing.remove();
+
+    // Build modifiers table rows with explanations
+    const modifierExplanations: Record<string, string> = {
+      timeOfDay: 'Peak hours (7-9 AM, 12-2 PM, 6-8 PM) increase demand',
+      demand: 'Based on recent sales history and market trends',
+      location: 'Regional market variations affect pricing',
+      seasonal: 'Seasonal preferences (winter = higher baked goods demand)',
+      freshness: 'Items lose value over time - sell fresh for best prices!'
+    };
+
+    const rows = Object.entries(modifiers).map(([key, val]) => {
+      const pct = ((val - 1) * 100).toFixed(0);
+      const cls = val > 1 ? 'positive' : val < 1 ? 'negative' : '';
+      const sign = val > 1 ? '+' : '';
+      const explanation = modifierExplanations[key] || 'Market factor affecting price';
+      return `
+        <tr>
+          <td>
+            <div class="factor-name">${this.formatFactorName(key)}</div>
+            <div class="factor-explanation">${explanation}</div>
+          </td>
+          <td class="${cls}">
+            <div class="factor-effect">${sign}${pct}%</div>
+            <div class="factor-multiplier">×${val.toFixed(2)}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Calculate price components
+    const priceChange = currentPrice - item.basePrice;
+    const priceChangeClass = priceChange > 0 ? 'positive' : priceChange < 0 ? 'negative' : '';
+    const priceChangeSign = priceChange > 0 ? '+' : '';
+
+    // Get ingredient cost breakdown for packages
+    let ingredientBreakdown = '';
+    if (item.category === 'packages' && item.recipeId) {
+      ingredientBreakdown = this.getIngredientCostBreakdown(item);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pricing-info-modal';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal pricing-modal">
+        <button class="modal-close" id="pricing-info-close">&times;</button>
+        
+        <div class="modal-header">
+          <div class="item-icon">${item.icon}</div>
+          <div class="item-title">
+            <h2>${item.name}</h2>
+            <div class="item-category">${this.formatCategoryName(item.category)}</div>
+          </div>
+        </div>
+
+        <div class="pricing-summary">
+          <div class="price-row base-price">
+            <span>Base Price:</span>
+            <span>$${item.basePrice.toFixed(2)}</span>
+          </div>
+          <div class="price-row current-price">
+            <span>Current Market Price:</span>
+            <span class="${priceChangeClass}">$${currentPrice.toFixed(2)}</span>
+          </div>
+          ${priceChange !== 0 ? `
+            <div class="price-row price-change ${priceChangeClass}">
+              <span>Market Adjustment:</span>
+              <span>${priceChangeSign}$${Math.abs(priceChange).toFixed(2)}</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="pricing-factors">
+          <h3>Market Factors</h3>
+          <table class="pricing-modifiers-table">
+            <thead>
+              <tr>
+                <th>Factor</th>
+                <th>Impact</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+
+        ${ingredientBreakdown}
+
+        <div class="pricing-tips">
+          <h3>💡 Pricing Tips</h3>
+          <ul>
+            <li><strong>Peak Hours:</strong> Sell during meal times for higher prices</li>
+            <li><strong>Freshness:</strong> Sell items quickly to maximize value</li>
+            <li><strong>Market Demand:</strong> Popular items command higher prices</li>
+            ${item.category === 'packages' ? '<li><strong>Quality:</strong> Better ingredients = higher base value</li>' : ''}
+          </ul>
+        </div>
+      </div>`;
+
+    // Add enhanced styling
+    this.addPricingModalStyles();
+
+    // Close actions
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    (overlay.querySelector('#pricing-info-close') as HTMLElement).addEventListener('click', () => overlay.remove());
+
+    document.body.appendChild(overlay);
   }
 }

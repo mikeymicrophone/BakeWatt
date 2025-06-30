@@ -19,6 +19,8 @@ import { ProductionService } from '@/domain/production/ProductionService';
 import { PricingService } from '@/domain/pricing/PricingService';
 import { RecipeShop } from '@/domain/store';
 import { UIManager } from '@/presentation/ui/UIManager';
+import '@/presentation/components/StoreItemCard';
+import '@/presentation/components/StoreItemCard';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -1802,6 +1804,25 @@ export class Application {
           </div>
         `;
       } else {
+        // === Lit component rendering ===
+        gridEl.innerHTML = '';
+        items.forEach(item => {
+          const card = document.createElement('store-item-card') as any;
+          const currentPrice = store.getCurrentPrice(item.id) || item.basePrice;
+          const modifiers = store.getPriceModifiers(item.id) || {};
+          
+          // Set properties using setAttribute for proper reactivity
+          gridEl.appendChild(card);
+          
+          // Set properties directly - accessor keyword handles reactivity
+          card.item = item;
+          card.currentPrice = currentPrice;
+          card.modifiers = modifiers;
+        });
+        return; // Skip legacy HTML generation
+        // === End Lit rendering ===
+        
+        /* Legacy HTML generation (kept for reference)
         let itemsHTML = '';
         
         items.forEach(item => {
@@ -1870,7 +1891,9 @@ export class Application {
           `;
         });
         
-        gridEl.innerHTML = itemsHTML;
+        */
+        // */
+        // gridEl.innerHTML = itemsHTML;
       }
     }
   }
@@ -1907,6 +1930,22 @@ export class Application {
 
   public showSalesNotification(message: string): void {
     this.uiManager.showSalesNotification(message);
+  }
+
+  /**
+   * Show pricing breakdown modal for a store item.
+   */
+  public showPricingInfo(itemId: string): void {
+    const store = this._gameState.store;
+    const itemEntity = store.getItem(itemId);
+    if (!itemEntity) {
+      console.error('Item not found');
+      return;
+    }
+
+    const currentPrice = store.getCurrentPrice(itemId) ?? itemEntity.basePrice;
+    const modifiers = store.getPriceModifiers(itemId) ?? {};
+    this.uiManager.showPricingInfoModal(itemEntity, currentPrice, modifiers);
   }
 
   private updateSupplierDisplay(): void {
