@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs:functions": "ts-node scripts/generateFunctionDocs.ts"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^21.0.0",
@@ -32,6 +33,8 @@
     "jsdom": "^26.1.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
-    "vitest": "^1.0.4"
+    "vitest": "^1.0.4",
+    "ts-node": "^10.9.1",
+    "ts-morph": "^18.0.0"
   }
 }
