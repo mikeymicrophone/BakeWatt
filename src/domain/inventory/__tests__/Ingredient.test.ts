@@ -7,7 +7,7 @@ describe('Ingredient', () => {
       
       expect(ingredient.id).toBe('flour');
       expect(ingredient.name).toBe('Flour');
-      expect(ingredient.unit).toBe('cups');
+      expect(ingredient.defaultUnit).toBe('cups');
       expect(ingredient.icon).toBe('🌾');
     });
 
@@ -28,8 +28,8 @@ describe('Ingredient', () => {
     });
 
     it('should throw error for empty unit', () => {
-      expect(() => new Ingredient('flour', 'Flour', '')).toThrow('Ingredient unit cannot be empty');
-      expect(() => new Ingredient('flour', 'Flour', '   ')).toThrow('Ingredient unit cannot be empty');
+      expect(() => new Ingredient('flour', 'Flour', '')).toThrow('Ingredient default unit cannot be empty');
+      expect(() => new Ingredient('flour', 'Flour', '   ')).toThrow('Ingredient default unit cannot be empty');
     });
   });
 
@@ -61,15 +61,15 @@ describe('Ingredient', () => {
     it('should contain flour, butter, and eggs', () => {
       expect(STARTER_INGREDIENTS.FLOUR.id).toBe('flour');
       expect(STARTER_INGREDIENTS.FLOUR.name).toBe('Flour');
-      expect(STARTER_INGREDIENTS.FLOUR.unit).toBe('cups');
+      expect(STARTER_INGREDIENTS.FLOUR.defaultUnit).toBe('cups');
 
       expect(STARTER_INGREDIENTS.BUTTER.id).toBe('butter');
       expect(STARTER_INGREDIENTS.BUTTER.name).toBe('Butter');
-      expect(STARTER_INGREDIENTS.BUTTER.unit).toBe('sticks');
+      expect(STARTER_INGREDIENTS.BUTTER.defaultUnit).toBe('sticks');
 
       expect(STARTER_INGREDIENTS.EGGS.id).toBe('eggs');
       expect(STARTER_INGREDIENTS.EGGS.name).toBe('Eggs');
-      expect(STARTER_INGREDIENTS.EGGS.unit).toBe('pieces');
+      expect(STARTER_INGREDIENTS.EGGS.defaultUnit).toBe('pieces');
     });
   });
 });

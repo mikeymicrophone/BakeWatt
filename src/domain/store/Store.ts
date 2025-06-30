@@ -145,6 +145,11 @@ export class Store {
     return false;
   }
 
+  @action
+  public addRevenue(amount: number): void {
+    this.revenue += amount;
+  }
+
   public toState(): StoreState {
     return {
       inventory: Array.from(this.inventory.values()).map(item => item.toState()),

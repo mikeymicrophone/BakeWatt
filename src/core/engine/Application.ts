@@ -1675,8 +1675,12 @@ export class Application {
       // Show success notification
       this.uiManager.showSalesNotification(result.message);
       
-      // Refresh shop display through UIManager
-      this.uiManager.populateRecipeShop('all');
+      // Refresh shop display through UIManager (preserve current sort/filter)
+      const modal = document.getElementById('recipe-shop-modal');
+      if (modal) {
+        // Only refresh if the modal is still open - preserve user's sort/filter preferences
+        this.uiManager.refreshRecipeShop();
+      }
       
       // Refresh recipe collection display
       this.uiManager.populateRecipeCollection(

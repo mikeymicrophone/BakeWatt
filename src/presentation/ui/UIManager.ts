@@ -830,6 +830,33 @@ export class UIManager {
             <button class="shop-category-btn" data-category="advanced">👑 Advanced</button>
           </div>
           
+          <div class="recipe-shop-controls">
+            <div class="shop-control-group">
+              <label for="recipe-sort">Sort by:</label>
+              <select id="recipe-sort" class="shop-select">
+                <option value="name">📝 Name</option>
+                <option value="price-low">💰 Price (Low to High)</option>
+                <option value="price-high">💸 Price (High to Low)</option>
+                <option value="level">🎯 Level Required</option>
+                <option value="time">⏱️ Baking Time</option>
+                <option value="difficulty">📊 Difficulty</option>
+                <option value="random">🎲 Random</option>
+              </select>
+            </div>
+            
+            <div class="shop-control-group">
+              <label for="recipe-filter">Show:</label>
+              <select id="recipe-filter" class="shop-select">
+                <option value="all">🛒 All Recipes</option>
+                <option value="purchasable">✅ Can Purchase</option>
+                <option value="owned">🏆 Owned</option>
+                <option value="locked">🔒 Locked</option>
+                <option value="coming-soon">🚧 Coming Soon</option>
+                <option value="affordable">💰 Affordable</option>
+              </select>
+            </div>
+          </div>
+          
           <div class="recipe-shop-grid" id="recipe-shop-grid">
             <!-- Will be populated with purchasable recipes -->
           </div>
@@ -844,7 +871,7 @@ export class UIManager {
     this.setupRecipeShopModal();
     
     // Populate with all recipes
-    this.populateRecipeShop('all');
+    this.populateRecipeShop('all', 'name', 'all');
   }
 
   public setupRecipeShopModal(): void {
@@ -878,15 +905,42 @@ export class UIManager {
         categoryBtns.forEach(b => b.classList.remove('active'));
         target.classList.add('active');
         
-        // Load category
+        // Load category with current sort and filter
         if (category) {
-          this.populateRecipeShop(category);
+          this.refreshRecipeShop();
         }
       });
     });
+    
+    // Sort and filter controls
+    const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
+    const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;
+    
+    if (sortSelect) {
+      sortSelect.addEventListener('change', () => {
+        this.refreshRecipeShop();
+      });
+    }
+    
+    if (filterSelect) {
+      filterSelect.addEventListener('change', () => {
+        this.refreshRecipeShop();
+      });
+    }
   }
 
-  public populateRecipeShop(category: string): void {
+  public refreshRecipeShop(): void {
+    const activeCategory = document.querySelector('.shop-category-btn.active')?.getAttribute('data-category') || 'all';
+    const sortSelect = document.getElementById('recipe-sort') as HTMLSelectElement;
+    const filterSelect = document.getElementById('recipe-filter') as HTMLSelectElement;
+    
+    const sortBy = sortSelect?.value || 'name';
+    const filterBy = filterSelect?.value || 'all';
+    
+    this.populateRecipeShop(activeCategory, sortBy, filterBy);
+  }
+
+  public populateRecipeShop(category: string, sortBy: string = 'name', filterBy: string = 'all'): void {
     const shopGrid = document.getElementById('recipe-shop-grid');
     if (!shopGrid) return;
 
@@ -897,6 +951,12 @@ export class UIManager {
     if (category !== 'all') {
       shopRecipes = RecipeShop.filterRecipesByCategory(shopRecipes, category);
     }
+    
+    // Apply additional filters
+    shopRecipes = this.applyRecipeFilter(shopRecipes, filterBy);
+    
+    // Apply sorting
+    shopRecipes = this.sortRecipes(shopRecipes, sortBy);
     
     const playerRevenue = this.app.gameState.store.getTotalRevenue();
     
@@ -978,6 +1038,67 @@ export class UIManager {
     const currencyAmount = document.getElementById('player-coins');
     if (currencyAmount) {
       currencyAmount.textContent = `$${playerRevenue.toFixed(2)}`;
+    }
+  }
+
+  private applyRecipeFilter(recipes: any[], filterBy: string): any[] {
+    switch (filterBy) {
+      case 'purchasable':
+        return recipes.filter(recipe => recipe.isPurchasable);
+      case 'owned':
+        return recipes.filter(recipe => recipe.isOwned);
+      case 'locked':
+        return recipes.filter(recipe => !recipe.isOwned && !recipe.isPurchasable && !recipe.comingSoon);
+      case 'coming-soon':
+        return recipes.filter(recipe => recipe.comingSoon);
+      case 'affordable': {
+        const playerRevenue = this.app.gameState.store.getTotalRevenue();
+        return recipes.filter(recipe => !recipe.isOwned && playerRevenue >= recipe.price);
+      }
+      case 'all':
+      default:
+        return recipes;
+    }
+  }
+
+  private sortRecipes(recipes: any[], sortBy: string): any[] {
+    const sorted = [...recipes];
+    
+    switch (sortBy) {
+      case 'name':
+        return sorted.sort((a, b) => a.recipe.name.localeCompare(b.recipe.name));
+      
+      case 'price-low':
+        return sorted.sort((a, b) => a.price - b.price);
+      
+      case 'price-high':
+        return sorted.sort((a, b) => b.price - a.price);
+      
+      case 'level':
+        return sorted.sort((a, b) => a.levelRequirement - b.levelRequirement);
+      
+      case 'time':
+        return sorted.sort((a, b) => a.recipe.bakingTime - b.recipe.bakingTime);
+      
+      case 'difficulty': {
+        const difficultyOrder = { 'easy': 1, 'medium': 2, 'hard': 3 };
+        return sorted.sort((a, b) => {
+          const aDiff = difficultyOrder[a.recipe.difficulty.toLowerCase() as keyof typeof difficultyOrder] || 2;
+          const bDiff = difficultyOrder[b.recipe.difficulty.toLowerCase() as keyof typeof difficultyOrder] || 2;
+          return aDiff - bDiff;
+        });
+      }
+      
+      case 'random':
+        // Fisher-Yates shuffle algorithm
+        for (let i = sorted.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
+        }
+        return sorted;
+      
+      default:
+        return sorted;
     }
   }
 }
