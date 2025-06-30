@@ -1,0 +1,230 @@
+{
+  "stepTemplates": {
+    "preheat": {
+      "name": "Preheat Oven",
+      "type": "preparation",
+      "instructions": [
+        "Preheat oven to {temp}°F",
+        "Allow oven to fully heat before baking"
+      ],
+      "requiredParams": ["temp"],
+      "defaultParams": {
+        "estimatedTime": 10
+      },
+      "description": "Standard oven preheating step"
+    },
+    "bake": {
+      "name": "Bake",
+      "type": "baking",
+      "instructions": [
+        "Bake for {time} minutes at {temp}°F",
+        "Check for doneness with toothpick or visual cues"
+      ],
+      "requiredParams": ["time", "temp"],
+      "description": "Standard baking step with time and temperature"
+    },
+    "mix-dry": {
+      "name": "Mix Dry Ingredients",
+      "type": "preparation",
+      "instructions": [
+        "In a large bowl, whisk together {group:dry}",
+        "Ensure even distribution of all dry ingredients",
+        "Set aside for combining with wet ingredients"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 3,
+        "groupName": "dry"
+      },
+      "description": "Mix dry ingredients together"
+    },
+    "mix-wet": {
+      "name": "Mix Wet Ingredients", 
+      "type": "preparation",
+      "instructions": [
+        "In a large bowl, cream {group:wet}",
+        "Beat until light and fluffy (about 3-4 minutes)",
+        "Ensure all wet ingredients are well incorporated"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 8,
+        "groupName": "wet"
+      },
+      "description": "Mix wet ingredients with creaming technique"
+    },
+    "mix-group": {
+      "name": "Mix {groupName} Ingredients",
+      "type": "preparation", 
+      "instructions": [
+        "In a bowl, combine {group:{groupName}}",
+        "Mix until well combined"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 5
+      },
+      "description": "Generic ingredient group mixing"
+    },
+    "combine-wet-dry": {
+      "name": "Combine Wet & Dry",
+      "type": "preparation",
+      "instructions": [
+        "Gradually add the dry ingredient mixture to the wet ingredients",
+        "Fold gently until just combined - do not overmix",
+        "Stop mixing as soon as no dry flour is visible"
+      ],
+      "defaultParams": {
+        "estimatedTime": 5
+      },
+      "description": "Combine wet and dry ingredient mixtures"
+    },
+    "cool": {
+      "name": "Cool",
+      "type": "cooling",
+      "instructions": [
+        "Cool for {time} minutes on {location}",
+        "Allow to cool completely before proceeding"
+      ],
+      "requiredParams": ["time"],
+      "defaultParams": {
+        "location": "wire rack"
+      },
+      "description": "Cooling step with customizable time and location"
+    },
+    "prep-pans": {
+      "name": "Prepare Pans",
+      "type": "preparation",
+      "instructions": [
+        "{prepMethod} your {panType}",
+        "Ensure even coverage for easy release",
+        "Set prepared pans aside until needed"
+      ],
+      "requiredParams": ["panType", "prepMethod"],
+      "defaultParams": {
+        "estimatedTime": 3,
+        "panType": "baking pan",
+        "prepMethod": "Grease and flour"
+      },
+      "description": "Prepare baking pans or dishes"
+    },
+    "add-chocolate": {
+      "name": "Add Chocolate",
+      "type": "preparation",
+      "instructions": [
+        "Gently fold in {group:additions} until evenly distributed",
+        "Don't overmix - just until chocolate is incorporated"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 3,
+        "groupName": "additions"
+      },
+      "description": "Add chocolate chips or pieces to mixture"
+    },
+    "decorate": {
+      "name": "Decorate",
+      "type": "decoration",
+      "instructions": [
+        "Prepare decorating ingredients: {group:decoration}",
+        "Apply decorations as desired for presentation",
+        "Be creative with decoration placement!"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 15,
+        "groupName": "decoration"
+      },
+      "description": "Add decorative elements to finished product"
+    },
+    "rest": {
+      "name": "Rest Dough",
+      "type": "preparation",
+      "instructions": [
+        "{coveringInstructions}",
+        "Place in {location}",
+        "Let rest for {time} minutes",
+        "Dough should visibly rise and feel lighter"
+      ],
+      "requiredParams": ["time"],
+      "defaultParams": {
+        "location": "warm place",
+        "coveringInstructions": "Cover with damp cloth"
+      },
+      "description": "Allow dough to rest and rise"
+    },
+    "cream-butter-sugar": {
+      "name": "Cream Butter & Sugar",
+      "type": "preparation",
+      "instructions": [
+        "Cream {group:creaming} until {consistency}",
+        "The mixture should be pale and increased in volume",
+        "This takes about 4-5 minutes with electric mixer"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 6,
+        "groupName": "creaming",
+        "consistency": "light and fluffy"
+      },
+      "description": "Cream butter and sugar base for recipes"
+    },
+    "add-eggs": {
+      "name": "Add Eggs & Liquid",
+      "type": "preparation",
+      "instructions": [
+        "Beat in eggs one at a time",
+        "Add liquid ingredients and mix until well combined",
+        "Scrape down bowl sides as needed"
+      ],
+      "defaultParams": {
+        "estimatedTime": 3
+      },
+      "description": "Add eggs and liquid ingredients to mixture"
+    },
+    "shape-cookies": {
+      "name": "Shape Cookies",
+      "type": "preparation",
+      "instructions": [
+        "Drop rounded tablespoons of dough onto ungreased cookie sheets",
+        "Space cookies 2 inches apart for even baking",
+        "Press gently to flatten if desired"
+      ],
+      "defaultParams": {
+        "estimatedTime": 8
+      },
+      "description": "Shape cookie dough for baking"
+    },
+    "layer-assembly": {
+      "name": "Layer Assembly",
+      "type": "assembly",
+      "instructions": [
+        "Level cake layers if needed",
+        "Place first layer on serving plate", 
+        "Spread {group:filling} evenly on first layer",
+        "Add second layer and press gently"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 10,
+        "groupName": "filling"
+      },
+      "description": "Assemble layered cakes with filling"
+    },
+    "frosting": {
+      "name": "Apply Frosting",
+      "type": "decoration",
+      "instructions": [
+        "Apply {group:frosting} to top and sides",
+        "Use offset spatula for smooth finish",
+        "Work quickly before frosting sets"
+      ],
+      "requiredParams": ["groupName"],
+      "defaultParams": {
+        "estimatedTime": 15,
+        "groupName": "frosting"
+      },
+      "description": "Apply frosting to cakes or cupcakes"
+    }
+  }
+}

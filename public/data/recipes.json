@@ -1,0 +1,591 @@
+{
+  "recipes": [
+    {
+      "id": "json-chocolate-chip-cookies",
+      "metadata": {
+        "name": "JSON Chocolate Chip Cookies",
+        "description": "Classic cookies defined in JSON configuration",
+        "baseServings": 24,
+        "difficulty": "easy",
+        "bakingTime": 35,
+        "icon": "🍪",
+        "skillLevel": "beginner",
+        "tags": ["json-config", "cookies", "classic"]
+      },
+      "steps": [
+        {
+          "template": "mix-dry",
+          "params": {
+            "estimatedTime": 5
+          },
+          "ingredientGroups": [
+            {
+              "name": "dry",
+              "ingredients": [
+                {
+                  "id": "flour",
+                  "amount": 2.5
+                },
+                {
+                  "id": "baking-soda",
+                  "amount": {
+                    "min": 0.5,
+                    "max": 1.5,
+                    "recommended": 1
+                  },
+                  "description": "Optional - adds lift to cookies"
+                }
+              ],
+              "description": "Dry base ingredients"
+            }
+          ]
+        },
+        {
+          "template": "mix-wet",
+          "params": {
+            "estimatedTime": 8
+          },
+          "ingredientGroups": [
+            {
+              "name": "wet",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 2
+                },
+                {
+                  "id": "eggs",
+                  "amount": 2
+                },
+                {
+                  "id": "sugar",
+                  "amount": {
+                    "min": 20,
+                    "max": 35,
+                    "recommended": 28,
+                    "step": 1
+                  },
+                  "description": "Adjust sweetness to taste"
+                }
+              ],
+              "description": "Wet ingredients for cookie base"
+            }
+          ]
+        },
+        {
+          "template": "combine-wet-dry",
+          "params": {
+            "estimatedTime": 4
+          }
+        },
+        {
+          "template": "add-chocolate",
+          "params": {
+            "estimatedTime": 3
+          },
+          "ingredientGroups": [
+            {
+              "name": "additions",
+              "ingredients": [
+                {
+                  "id": "chocolate",
+                  "amount": {
+                    "min": 15,
+                    "max": 40,
+                    "recommended": 25,
+                    "step": 5
+                  },
+                  "description": "More chocolate = more happiness!"
+                }
+              ],
+              "description": "Chocolate additions"
+            }
+          ]
+        },
+        {
+          "template": "preheat",
+          "params": {
+            "temp": 375,
+            "estimatedTime": 10
+          }
+        },
+        {
+          "template": "shape-cookies",
+          "params": {
+            "estimatedTime": 8
+          }
+        },
+        {
+          "template": "bake",
+          "params": {
+            "time": 12,
+            "temp": 375
+          }
+        },
+        {
+          "template": "cool",
+          "params": {
+            "time": 5,
+            "location": "baking sheet"
+          },
+          "customInstructions": [
+            "Cool on baking sheet for 5 minutes",
+            "Transfer to wire rack to cool completely"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "json-brown-sugar-cookies",
+      "metadata": {
+        "name": "JSON Brown Sugar Cookies",
+        "description": "Spiced cookies with brown sugar from JSON config",
+        "baseServings": 18,
+        "difficulty": "easy",
+        "bakingTime": 28,
+        "icon": "🍪",
+        "skillLevel": "beginner",
+        "tags": ["json-config", "spiced", "brown-sugar"]
+      },
+      "steps": [
+        {
+          "template": "mix-dry",
+          "params": {
+            "estimatedTime": 4
+          },
+          "ingredientGroups": [
+            {
+              "name": "dry",
+              "ingredients": [
+                {
+                  "id": "flour",
+                  "amount": 2.25
+                },
+                {
+                  "id": "nutmeg",
+                  "amount": {
+                    "min": 0.25,
+                    "max": 1,
+                    "recommended": 0.5
+                  },
+                  "description": "Adjust spice level to taste"
+                },
+                {
+                  "id": "baking-soda",
+                  "amount": 0.5
+                }
+              ],
+              "description": "Dry ingredients with warm spices"
+            }
+          ]
+        },
+        {
+          "template": "cream-butter-sugar",
+          "params": {
+            "estimatedTime": 6
+          },
+          "ingredientGroups": [
+            {
+              "name": "creaming",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 1.5
+                },
+                {
+                  "id": "brown-sugar",
+                  "amount": {
+                    "min": 0.75,
+                    "max": 1.5,
+                    "recommended": 1,
+                    "step": 0.25
+                  },
+                  "description": "More brown sugar = deeper molasses flavor"
+                }
+              ],
+              "description": "Butter and brown sugar creaming base"
+            }
+          ]
+        },
+        {
+          "template": "add-eggs",
+          "params": {
+            "estimatedTime": 3
+          },
+          "ingredients": [
+            {
+              "id": "eggs",
+              "amount": 1
+            },
+            {
+              "id": "vanilla",
+              "amount": 1.5
+            }
+          ]
+        },
+        {
+          "template": "combine-wet-dry",
+          "params": {
+            "estimatedTime": 4
+          }
+        },
+        {
+          "template": "preheat",
+          "params": {
+            "temp": 350,
+            "estimatedTime": 10
+          }
+        },
+        {
+          "template": "shape-cookies",
+          "params": {
+            "estimatedTime": 8
+          }
+        },
+        {
+          "template": "bake",
+          "params": {
+            "time": 14,
+            "temp": 350
+          },
+          "customInstructions": [
+            "Bake for 14 minutes at 350°F",
+            "Bake until edges are set but centers still soft",
+            "Don't overbake - cookies continue cooking on hot pan"
+          ]
+        },
+        {
+          "template": "cool",
+          "params": {
+            "time": 3,
+            "location": "baking sheet"
+          },
+          "customInstructions": [
+            "Cool on baking sheet for 3 minutes",
+            "Transfer to wire rack after cooling briefly"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "json-vanilla-cupcakes",
+      "metadata": {
+        "name": "JSON Vanilla Cupcakes",
+        "description": "Classic cupcakes from JSON template configuration",
+        "baseServings": 12,
+        "difficulty": "easy",
+        "bakingTime": 30,
+        "icon": "🧁",
+        "skillLevel": "beginner",
+        "tags": ["json-config", "cupcakes", "vanilla"]
+      },
+      "steps": [
+        {
+          "template": "mix-dry",
+          "params": {
+            "estimatedTime": 3
+          },
+          "ingredientGroups": [
+            {
+              "name": "dry",
+              "ingredients": [
+                {
+                  "id": "flour",
+                  "amount": 1.5
+                },
+                {
+                  "id": "sugar",
+                  "amount": 15
+                }
+              ],
+              "description": "Cupcake dry ingredients"
+            }
+          ]
+        },
+        {
+          "template": "mix-wet",
+          "params": {
+            "estimatedTime": 6
+          },
+          "ingredientGroups": [
+            {
+              "name": "wet",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 0.5
+                },
+                {
+                  "id": "eggs",
+                  "amount": 1
+                },
+                {
+                  "id": "vanilla",
+                  "amount": 2
+                }
+              ],
+              "description": "Cupcake wet ingredients"
+            }
+          ]
+        },
+        {
+          "template": "combine-wet-dry",
+          "params": {
+            "estimatedTime": 4
+          }
+        },
+        {
+          "template": "preheat",
+          "params": {
+            "temp": 350,
+            "estimatedTime": 10
+          }
+        },
+        {
+          "template": "prep-pans",
+          "params": {
+            "panType": "muffin tin",
+            "prepMethod": "Line with cupcake papers",
+            "estimatedTime": 3
+          }
+        },
+        {
+          "template": "bake",
+          "params": {
+            "time": 18,
+            "temp": 350
+          },
+          "customInstructions": [
+            "Fill cupcake liners 2/3 full with batter",
+            "Bake for 18 minutes until toothpick comes out clean"
+          ]
+        },
+        {
+          "template": "cool",
+          "params": {
+            "time": 5,
+            "location": "pan"
+          },
+          "customInstructions": [
+            "Cool in pan for 5 minutes",
+            "Transfer to wire rack to cool completely"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "json-layer-cake",
+      "metadata": {
+        "name": "JSON Layer Cake",
+        "description": "Advanced layered cake with complex JSON configuration",
+        "baseServings": 16,
+        "difficulty": "hard",
+        "bakingTime": 75,
+        "icon": "🎂",
+        "skillLevel": "advanced",
+        "tags": ["json-config", "layered", "advanced"]
+      },
+      "steps": [
+        {
+          "template": "preheat",
+          "params": {
+            "temp": 375,
+            "estimatedTime": 15
+          }
+        },
+        {
+          "template": "prep-pans",
+          "params": {
+            "panType": "two 9-inch round pans",
+            "prepMethod": "Grease and flour",
+            "estimatedTime": 5
+          }
+        },
+        {
+          "template": "mix-group",
+          "params": {
+            "groupName": "dry",
+            "estimatedTime": 5
+          },
+          "customInstructions": [
+            "First, whisk together {group:dry} in large bowl"
+          ],
+          "ingredientGroups": [
+            {
+              "name": "dry",
+              "ingredients": [
+                {
+                  "id": "flour",
+                  "amount": 3
+                },
+                {
+                  "id": "sugar",
+                  "amount": 30
+                }
+              ],
+              "description": "Dry cake base"
+            }
+          ]
+        },
+        {
+          "template": "cream-butter-sugar",
+          "params": {
+            "groupName": "fats",
+            "estimatedTime": 8,
+            "consistency": "very light and fluffy"
+          },
+          "customInstructions": [
+            "In separate bowl, cream {group:fats} until {consistency}",
+            "Beat for about 5-6 minutes for maximum volume"
+          ],
+          "ingredientGroups": [
+            {
+              "name": "fats",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 2
+                }
+              ],
+              "description": "Fat base for cake"
+            }
+          ]
+        },
+        {
+          "template": "add-eggs",
+          "params": {
+            "estimatedTime": 4
+          },
+          "customInstructions": [
+            "Beat in eggs one at a time until fully incorporated",
+            "Add vanilla and mix well",
+            "Scrape bowl frequently for even mixing"
+          ],
+          "ingredients": [
+            {
+              "id": "eggs",
+              "amount": 3
+            },
+            {
+              "id": "vanilla",
+              "amount": 2
+            }
+          ]
+        },
+        {
+          "template": "combine-wet-dry",
+          "params": {
+            "estimatedTime": 6
+          },
+          "customInstructions": [
+            "Gradually fold dry mixture into wet on low speed",
+            "Mix just until combined - about 3 minutes total",
+            "Don't overbeat once flour is added"
+          ]
+        },
+        {
+          "template": "bake",
+          "params": {
+            "time": 30,
+            "temp": 350
+          },
+          "customInstructions": [
+            "Divide batter evenly between prepared pans",
+            "Start baking at 375°F for first 10 minutes",
+            "Reduce temperature to 350°F and continue for 20 minutes",
+            "Test with toothpick for doneness"
+          ]
+        },
+        {
+          "template": "cool",
+          "params": {
+            "time": 15,
+            "location": "pans"
+          },
+          "customInstructions": [
+            "Cool in pans for 15 minutes",
+            "Turn out onto wire racks for complete cooling",
+            "Cool completely before assembling"
+          ]
+        },
+        {
+          "template": "layer-assembly",
+          "params": {
+            "estimatedTime": 10
+          },
+          "ingredientGroups": [
+            {
+              "name": "filling",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 0.5
+                },
+                {
+                  "id": "sugar",
+                  "amount": 10
+                }
+              ],
+              "description": "Layer filling"
+            }
+          ]
+        },
+        {
+          "template": "frosting",
+          "params": {
+            "estimatedTime": 20
+          },
+          "ingredientGroups": [
+            {
+              "name": "frosting",
+              "ingredients": [
+                {
+                  "id": "butter",
+                  "amount": 1
+                },
+                {
+                  "id": "sugar",
+                  "amount": 20
+                },
+                {
+                  "id": "vanilla",
+                  "amount": 1
+                }
+              ],
+              "description": "Buttercream frosting"
+            }
+          ]
+        },
+        {
+          "template": "decorate",
+          "params": {
+            "estimatedTime": 15
+          },
+          "customInstructions": [
+            "Finish with decorative elements as desired",
+            "Add chocolate pieces for elegant presentation",
+            "Refrigerate finished cake for best results"
+          ],
+          "ingredientGroups": [
+            {
+              "name": "decoration",
+              "ingredients": [
+                {
+                  "id": "chocolate",
+                  "amount": {
+                    "min": 5,
+                    "max": 25,
+                    "recommended": 12,
+                    "step": 3
+                  },
+                  "description": "Optional chocolate decoration"
+                }
+              ],
+              "description": "Decorative elements"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

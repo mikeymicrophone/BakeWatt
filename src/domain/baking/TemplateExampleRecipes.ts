@@ -425,11 +425,14 @@ export function createAdvancedLayerCake(): MultiStepRecipe {
   return new MultiStepRecipe(metadata, allSteps);
 }
 
+import { RecipeConfigService } from './RecipeConfigService';
+
 /**
  * Recipe library for template-based recipes
+ * Now supports both JSON-configured recipes and hardcoded recipes
  */
 export class TemplateRecipeLibrary {
-  private static recipes: Map<string, () => Promise<MultiStepRecipe> | MultiStepRecipe> = new Map([
+  private static hardcodedRecipes: Map<string, () => Promise<MultiStepRecipe> | MultiStepRecipe> = new Map([
     ['modern-chocolate-chip-cookies', createModernChocolateChipCookies],
     ['spiced-brown-sugar-cookies', createSpicedBrownSugarCookies],
     ['templated-vanilla-cupcakes', () => createTemplatedVanillaCupcakes()],
@@ -437,17 +440,26 @@ export class TemplateRecipeLibrary {
   ]);
 
   /**
-   * Get all template-based recipes
+   * Get all template-based recipes (JSON + hardcoded)
    */
   public static async getAllRecipes(): Promise<MultiStepRecipe[]> {
     const recipes: MultiStepRecipe[] = [];
     
-    for (const [id, factory] of this.recipes) {
+    // Get JSON-configured recipes
+    try {
+      const jsonRecipes = await RecipeConfigService.getAllRecipes();
+      recipes.push(...jsonRecipes);
+    } catch (error) {
+      console.warn('Failed to load JSON recipes:', error);
+    }
+    
+    // Get hardcoded recipes
+    for (const [id, factory] of this.hardcodedRecipes) {
       try {
         const recipe = await factory();
         recipes.push(recipe);
       } catch (error) {
-        console.warn(`Failed to create recipe ${id}:`, error);
+        console.warn(`Failed to create hardcoded recipe ${id}:`, error);
       }
     }
     
@@ -455,10 +467,21 @@ export class TemplateRecipeLibrary {
   }
 
   /**
-   * Get a specific template recipe by ID
+   * Get a specific template recipe by ID (JSON or hardcoded)
    */
   public static async getRecipeById(id: string): Promise<MultiStepRecipe | null> {
-    const factory = this.recipes.get(id);
+    // Try JSON recipes first
+    try {
+      const jsonRecipe = await RecipeConfigService.getRecipe(id);
+      if (jsonRecipe) {
+        return jsonRecipe;
+      }
+    } catch (error) {
+      console.warn(`Failed to load JSON recipe ${id}:`, error);
+    }
+
+    // Fall back to hardcoded recipes
+    const factory = this.hardcodedRecipes.get(id);
     if (!factory) {
       return null;
     }
@@ -466,22 +489,101 @@ export class TemplateRecipeLibrary {
     try {
       return await factory();
     } catch (error) {
-      console.error(`Failed to create recipe ${id}:`, error);
+      console.error(`Failed to create hardcoded recipe ${id}:`, error);
       return null;
     }
   }
 
   /**
-   * Check if a recipe ID exists in the template library
+   * Check if a recipe ID exists in the template library (JSON or hardcoded)
    */
-  public static hasRecipe(id: string): boolean {
-    return this.recipes.has(id);
+  public static async hasRecipe(id: string): Promise<boolean> {
+    // Check JSON recipes
+    try {
+      const hasJsonRecipe = await RecipeConfigService.hasRecipe(id);
+      if (hasJsonRecipe) {
+        return true;
+      }
+    } catch (error) {
+      // Continue to check hardcoded recipes
+    }
+
+    // Check hardcoded recipes
+    return this.hardcodedRecipes.has(id);
   }
 
   /**
-   * Get all available recipe IDs
+   * Get all available recipe IDs (JSON + hardcoded)
    */
-  public static getRecipeIds(): string[] {
-    return Array.from(this.recipes.keys());
+  public static async getRecipeIds(): Promise<string[]> {
+    const ids: string[] = [];
+    
+    // Get JSON recipe IDs
+    try {
+      const jsonIds = await RecipeConfigService.getRecipeIds();
+      ids.push(...jsonIds);
+    } catch (error) {
+      console.warn('Failed to get JSON recipe IDs:', error);
+    }
+    
+    // Get hardcoded recipe IDs
+    ids.push(...Array.from(this.hardcodedRecipes.keys()));
+    
+    // Remove duplicates
+    return Array.from(new Set(ids));
+  }
+
+  /**
+   * Get recipes by source type
+   */
+  public static async getRecipesBySource(source: 'json' | 'hardcoded'): Promise<MultiStepRecipe[]> {
+    if (source === 'json') {
+      try {
+        return await RecipeConfigService.getAllRecipes();
+      } catch (error) {
+        console.warn('Failed to load JSON recipes:', error);
+        return [];
+      }
+    } else {
+      const recipes: MultiStepRecipe[] = [];
+      for (const [id, factory] of this.hardcodedRecipes) {
+        try {
+          const recipe = await factory();
+          recipes.push(recipe);
+        } catch (error) {
+          console.warn(`Failed to create hardcoded recipe ${id}:`, error);
+        }
+      }
+      return recipes;
+    }
+  }
+
+  /**
+   * Get summary of available recipes
+   */
+  public static async getSummary(): Promise<{
+    total: number;
+    jsonRecipes: number;
+    hardcodedRecipes: number;
+    recipeIds: string[];
+  }> {
+    const allIds = await this.getRecipeIds();
+    
+    let jsonCount = 0;
+    try {
+      const jsonRecipes = await RecipeConfigService.getAllRecipes();
+      jsonCount = jsonRecipes.length;
+    } catch (error) {
+      // JSON recipes not available
+    }
+    
+    const hardcodedCount = this.hardcodedRecipes.size;
+    
+    return {
+      total: allIds.length,
+      jsonRecipes: jsonCount,
+      hardcodedRecipes: hardcodedCount,
+      recipeIds: allIds
+    };
   }
 }

@@ -29,8 +29,72 @@ export interface IngredientsData {
   ingredients: IngredientConfig[];
 }
 
+// Recipe Configuration Interfaces
+export interface RecipeIngredientConfig {
+  id: string;
+  amount: number | {
+    min: number;
+    max: number;
+    recommended?: number;
+    step?: number;
+  };
+  description?: string;
+}
+
+export interface IngredientGroupConfig {
+  name: string;
+  ingredients: RecipeIngredientConfig[];
+  description?: string;
+}
+
+export interface StepConfig {
+  template: string;
+  params?: Record<string, any>;
+  customInstructions?: string[];
+  ingredientGroups?: IngredientGroupConfig[];
+  ingredients?: RecipeIngredientConfig[];
+  estimatedTime?: number;
+}
+
+export interface RecipeMetadataConfig {
+  name: string;
+  description: string;
+  baseServings: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  bakingTime: number;
+  icon: string;
+  skillLevel?: string;
+  tags?: string[];
+}
+
+export interface RecipeConfig {
+  id: string;
+  metadata: RecipeMetadataConfig;
+  steps: StepConfig[];
+}
+
+export interface RecipesData {
+  recipes: RecipeConfig[];
+}
+
+// Step Template Configuration Interfaces
+export interface StepTemplateConfig {
+  name: string;
+  type: 'preparation' | 'baking' | 'cooling' | 'assembly' | 'decoration';
+  instructions: string[];
+  requiredParams?: string[];
+  defaultParams?: Record<string, any>;
+  description?: string;
+}
+
+export interface StepTemplatesData {
+  stepTemplates: Record<string, StepTemplateConfig>;
+}
+
 export class ConfigLoader {
   private static ingredientsCache: IngredientsData | null = null;
+  private static recipesCache: RecipesData | null = null;
+  private static stepTemplatesCache: StepTemplatesData | null = null;
 
   /**
    * Load ingredients from JSON configuration file
@@ -98,6 +162,8 @@ export class ConfigLoader {
    */
   public static clearCache(): void {
     this.ingredientsCache = null;
+    this.recipesCache = null;
+    this.stepTemplatesCache = null;
   }
 
   /**
@@ -210,5 +276,277 @@ export class ConfigLoader {
   public static async reloadIngredients(): Promise<IngredientsData> {
     this.clearCache();
     return this.loadIngredients();
+  }
+
+  // ==================== RECIPE CONFIGURATION METHODS ====================
+
+  /**
+   * Load recipes from JSON configuration file
+   */
+  public static async loadRecipes(): Promise<RecipesData> {
+    if (this.recipesCache) {
+      return this.recipesCache;
+    }
+
+    try {
+      console.log('📄 Loading recipes from JSON config...');
+      
+      const response = await fetch('/data/recipes.json');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load recipes: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: RecipesData = await response.json();
+      
+      // Validate the data structure
+      this.validateRecipesData(data);
+      
+      // Cache the result
+      this.recipesCache = data;
+      
+      console.log(`✅ Loaded ${data.recipes.length} recipes from config`);
+      return data;
+      
+    } catch (error) {
+      console.error('❌ Failed to load recipes config:', error);
+      
+      // Return fallback data
+      return this.getFallbackRecipes();
+    }
+  }
+
+  /**
+   * Get a specific recipe by ID from config
+   */
+  public static async getRecipeById(id: string): Promise<RecipeConfig | null> {
+    const data = await this.loadRecipes();
+    return data.recipes.find(recipe => recipe.id === id) || null;
+  }
+
+  /**
+   * Get all recipes from config
+   */
+  public static async getAllRecipes(): Promise<RecipeConfig[]> {
+    const data = await this.loadRecipes();
+    return data.recipes;
+  }
+
+  /**
+   * Get recipes by difficulty
+   */
+  public static async getRecipesByDifficulty(difficulty: 'easy' | 'medium' | 'hard'): Promise<RecipeConfig[]> {
+    const data = await this.loadRecipes();
+    return data.recipes.filter(recipe => recipe.metadata.difficulty === difficulty);
+  }
+
+  /**
+   * Get recipes by tag
+   */
+  public static async getRecipesByTag(tag: string): Promise<RecipeConfig[]> {
+    const data = await this.loadRecipes();
+    return data.recipes.filter(recipe => recipe.metadata.tags?.includes(tag));
+  }
+
+  /**
+   * Load step templates from JSON configuration file
+   */
+  public static async loadStepTemplates(): Promise<StepTemplatesData> {
+    if (this.stepTemplatesCache) {
+      return this.stepTemplatesCache;
+    }
+
+    try {
+      console.log('📄 Loading step templates from JSON config...');
+      
+      const response = await fetch('/data/recipe-templates.json');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load step templates: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: StepTemplatesData = await response.json();
+      
+      // Validate the data structure
+      this.validateStepTemplatesData(data);
+      
+      // Cache the result
+      this.stepTemplatesCache = data;
+      
+      console.log(`✅ Loaded ${Object.keys(data.stepTemplates).length} step templates from config`);
+      return data;
+      
+    } catch (error) {
+      console.error('❌ Failed to load step templates config:', error);
+      
+      // Return fallback data
+      return this.getFallbackStepTemplates();
+    }
+  }
+
+  /**
+   * Get a specific step template by ID
+   */
+  public static async getStepTemplate(templateId: string): Promise<StepTemplateConfig | null> {
+    const data = await this.loadStepTemplates();
+    return data.stepTemplates[templateId] || null;
+  }
+
+  /**
+   * Get all step templates from config
+   */
+  public static async getAllStepTemplates(): Promise<Record<string, StepTemplateConfig>> {
+    const data = await this.loadStepTemplates();
+    return data.stepTemplates;
+  }
+
+  /**
+   * Reload recipes from source (useful for development)
+   */
+  public static async reloadRecipes(): Promise<RecipesData> {
+    this.recipesCache = null;
+    return this.loadRecipes();
+  }
+
+  /**
+   * Reload step templates from source (useful for development)
+   */
+  public static async reloadStepTemplates(): Promise<StepTemplatesData> {
+    this.stepTemplatesCache = null;
+    return this.loadStepTemplates();
+  }
+
+  /**
+   * Validate the structure of recipes data
+   */
+  private static validateRecipesData(data: any): void {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid recipes data: not an object');
+    }
+
+    if (!Array.isArray(data.recipes)) {
+      throw new Error('Invalid recipes data: recipes is not an array');
+    }
+
+    data.recipes.forEach((recipe: any, index: number) => {
+      if (!recipe.id || typeof recipe.id !== 'string') {
+        throw new Error(`Invalid recipe at index ${index}: missing or invalid id`);
+      }
+      
+      if (!recipe.metadata || typeof recipe.metadata !== 'object') {
+        throw new Error(`Invalid recipe at index ${index}: missing or invalid metadata`);
+      }
+
+      if (!recipe.metadata.name || typeof recipe.metadata.name !== 'string') {
+        throw new Error(`Invalid recipe at index ${index}: missing or invalid name`);
+      }
+
+      if (!Array.isArray(recipe.steps)) {
+        throw new Error(`Invalid recipe at index ${index}: steps is not an array`);
+      }
+
+      recipe.steps.forEach((step: any, stepIndex: number) => {
+        if (!step.template || typeof step.template !== 'string') {
+          throw new Error(`Invalid step at recipe ${index}, step ${stepIndex}: missing or invalid template`);
+        }
+      });
+    });
+  }
+
+  /**
+   * Validate the structure of step templates data
+   */
+  private static validateStepTemplatesData(data: any): void {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid step templates data: not an object');
+    }
+
+    if (!data.stepTemplates || typeof data.stepTemplates !== 'object') {
+      throw new Error('Invalid step templates data: stepTemplates is not an object');
+    }
+
+    Object.entries(data.stepTemplates).forEach(([templateId, template]: [string, any]) => {
+      if (!template.name || typeof template.name !== 'string') {
+        throw new Error(`Invalid template ${templateId}: missing or invalid name`);
+      }
+
+      if (!template.type || typeof template.type !== 'string') {
+        throw new Error(`Invalid template ${templateId}: missing or invalid type`);
+      }
+
+      if (!Array.isArray(template.instructions)) {
+        throw new Error(`Invalid template ${templateId}: instructions is not an array`);
+      }
+    });
+  }
+
+  /**
+   * Fallback recipes data in case the JSON file can't be loaded
+   */
+  private static getFallbackRecipes(): RecipesData {
+    console.warn('🔄 Using fallback recipes data');
+    
+    return {
+      recipes: [
+        {
+          id: 'basic-cookies',
+          metadata: {
+            name: 'Basic Cookies',
+            description: 'Simple fallback cookie recipe',
+            baseServings: 12,
+            difficulty: 'easy',
+            bakingTime: 20,
+            icon: '🍪',
+            skillLevel: 'beginner',
+            tags: ['fallback', 'simple']
+          },
+          steps: [
+            {
+              template: 'mix-ingredients',
+              params: { estimatedTime: 10 },
+              ingredients: [
+                { id: 'flour', amount: 2 },
+                { id: 'sugar', amount: 10 }
+              ]
+            },
+            {
+              template: 'bake',
+              params: { time: 15, temp: 350 }
+            }
+          ]
+        }
+      ]
+    };
+  }
+
+  /**
+   * Fallback step templates data in case the JSON file can't be loaded
+   */
+  private static getFallbackStepTemplates(): StepTemplatesData {
+    console.warn('🔄 Using fallback step templates data');
+    
+    return {
+      stepTemplates: {
+        'preheat': {
+          name: 'Preheat Oven',
+          type: 'preparation',
+          instructions: ['Preheat oven to {temp}°F'],
+          requiredParams: ['temp'],
+          defaultParams: { estimatedTime: 10 }
+        },
+        'bake': {
+          name: 'Bake',
+          type: 'baking',
+          instructions: ['Bake for {time} minutes at {temp}°F'],
+          requiredParams: ['time', 'temp']
+        },
+        'mix-ingredients': {
+          name: 'Mix Ingredients',
+          type: 'preparation',
+          instructions: ['Combine all ingredients', 'Mix until well combined'],
+          defaultParams: { estimatedTime: 5 }
+        }
+      }
+    };
   }
 }
