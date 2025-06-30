@@ -1932,6 +1932,27 @@ export class Application {
     this.uiManager.showSalesNotification(message);
   }
 
+  @action
+  public sellSingleItem(itemId: string): void {
+    const result = this._gameState.store.sellItem(itemId, 1);
+    
+    if (result.success) {
+      this.showSalesNotification(`Sold 1 item for $${result.revenue.toFixed(2)}!`);
+      this.updateStoreDisplay();
+      
+      // Check if store is now empty and go to supplier
+      const allItems = this._gameState.store.getAllItems();
+      if (allItems.length === 0) {
+        this.showSalesNotification('Store is empty! Time to restock at the supplier.');
+        setTimeout(() => {
+          this.switchToTab('supplier');
+        }, 2000); // Wait 2 seconds to show the message
+      }
+    } else {
+      alert(result.error || 'Sale failed');
+    }
+  }
+
   /**
    * Show pricing breakdown modal for a store item.
    */

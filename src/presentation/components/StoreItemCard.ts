@@ -19,6 +19,13 @@ export class StoreItemCard extends LitElement {
     this.modifiers = {};
   }
 
+  /**
+   * Render in light DOM so that global styles apply.
+   */
+  protected createRenderRoot() {
+    return this; // renders into light DOM instead of shadow
+  }
+
   static styles = css`
     :host {
       display: block;
@@ -63,7 +70,7 @@ export class StoreItemCard extends LitElement {
 
   private sell() {
     if (this.item?.id) {
-      window.appInstance?.sellItem(this.item.id);
+      window.appInstance?.sellSingleItem(this.item.id);
     }
   }
   private showPricing() {
