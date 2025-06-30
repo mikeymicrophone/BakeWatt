@@ -882,12 +882,6 @@ export class Application {
     });
   }
 
-
-
-
-
-
-
   @action
   public startCooking(recipeId: string): void {
     const recipe = MultiStepRecipeLibrary.getRecipeById(recipeId);
@@ -1254,14 +1248,12 @@ export class Application {
             <div class="grid-control-section">
               <div class="grid-sliders">
                 <div class="slider-group">
-                  <label>Grid Width (1-10):</label>
                   <input type="range" class="grid-slider" id="width-slider-${ingredient.id}" 
                          min="1" max="10" value="5" 
                          onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
                   <span id="width-value-${ingredient.id}">5</span>
                 </div>
                 <div class="slider-group">
-                  <label>Grid Height (1-10):</label>
                   <input type="range" class="grid-slider" id="height-slider-${ingredient.id}" 
                          min="1" max="10" value="4" 
                          onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
