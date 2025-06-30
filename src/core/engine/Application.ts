@@ -1478,6 +1478,18 @@ export class Application {
     this.productionService.finishProduction();
   }
 
+  @action
+  public updateCuttingAmount(amount: number): void {
+    console.log(`🔪 Updating cutting amount to: ${amount}`);
+    this.productionService.updateCuttingAmount(amount);
+  }
+
+  @action
+  public updatePackagingAmount(amount: number): void {
+    console.log(`📦 Updating packaging amount to: ${amount}`);
+    this.productionService.updatePackagingAmount(amount);
+  }
+
   private setupZoomSync(): void {
     // Create callback for zoom changes
     this.zoomCallback = (zoomLevel: number) => {
@@ -1593,7 +1605,7 @@ export class Application {
 
 
   @action
-  private sortRecipes(sortBy: string): void {
+  public sortRecipes(sortBy: string): void {
     let recipes = MultiStepRecipeLibrary.getAllRecipes();
     
     switch (sortBy) {
@@ -1622,7 +1634,7 @@ export class Application {
   }
 
   @action
-  private filterRecipes(filterBy: string): void {
+  public filterRecipes(filterBy: string): void {
     let recipes = MultiStepRecipeLibrary.getAllRecipes();
     
     switch (filterBy) {

@@ -15,6 +15,7 @@ export class UIManager {
     this.setupStoreInterface();
     this.setupSupplierInterface();
     this.setupRecipeControls();
+    this.setupProductionSliders();
   }
 
   public setupTabNavigation(): void {
@@ -156,16 +157,14 @@ export class UIManager {
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
         const sortBy = (e.target as HTMLSelectElement).value;
-        // TODO: Implement sortRecipes method
-        console.log('Sort recipes by:', sortBy);
+        this.app.sortRecipes(sortBy);
       });
     }
 
     if (filterSelect) {
       filterSelect.addEventListener('change', (e) => {
         const filterBy = (e.target as HTMLSelectElement).value;
-        // TODO: Implement filterRecipes method
-        console.log('Filter recipes by:', filterBy);
+        this.app.filterRecipes(filterBy);
       });
     }
 
@@ -1099,6 +1098,50 @@ export class UIManager {
       
       default:
         return sorted;
+    }
+  }
+
+  public setupProductionSliders(): void {
+    console.log('🔧 Setting up production sliders...');
+    
+    // Cutting slider setup
+    const cuttingSlider = document.getElementById('cutting-slider') as HTMLInputElement;
+    const cuttingValue = document.getElementById('cutting-value');
+    
+    if (cuttingSlider && cuttingValue) {
+      console.log('✅ Found cutting slider');
+      
+      // Update display value when slider changes
+      cuttingSlider.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        cuttingValue.textContent = value.toString();
+        
+        // Update production service
+        this.app.updateCuttingAmount(value);
+        console.log(`🔪 Cutting amount updated to: ${value}`);
+      });
+    } else {
+      console.error('❌ Cutting slider or value display not found');
+    }
+    
+    // Packaging slider setup  
+    const packagingSlider = document.getElementById('packaging-slider') as HTMLInputElement;
+    const packagingValue = document.getElementById('packaging-value');
+    
+    if (packagingSlider && packagingValue) {
+      console.log('✅ Found packaging slider');
+      
+      // Update display value when slider changes
+      packagingSlider.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        packagingValue.textContent = value.toString();
+        
+        // Update production service
+        this.app.updatePackagingAmount(value);
+        console.log(`📦 Packaging amount updated to: ${value}`);
+      });
+    } else {
+      console.error('❌ Packaging slider or value display not found');
     }
   }
 }
