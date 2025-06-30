@@ -1,8 +1,10 @@
 import { Project, SyntaxKind } from 'ts-morph';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Root of the project (directory containing this script is /scripts)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
 async function main() {
