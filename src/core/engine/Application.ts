@@ -1613,9 +1613,10 @@ export class Application {
         recipes.sort((a, b) => a.name.localeCompare(b.name));
         break;
       case 'difficulty':
-        const difficultyOrder = { 'Easy': 1, 'Medium': 2, 'Hard': 3 };
-        recipes.sort((a, b) => 
-          (difficultyOrder[a.difficulty] || 0) - (difficultyOrder[b.difficulty] || 0)
+        const difficultyOrder = { 'easy': 1, 'medium': 2, 'hard': 3 } as const;
+        recipes.sort((a, b) =>
+          (difficultyOrder[a.difficulty.toLowerCase() as keyof typeof difficultyOrder] || 0) -
+          (difficultyOrder[b.difficulty.toLowerCase() as keyof typeof difficultyOrder] || 0)
         );
         break;
       case 'time':
@@ -1646,13 +1647,13 @@ export class Application {
         recipes = [];
         break;
       case 'easy':
-        recipes = recipes.filter(recipe => recipe.difficulty === 'Easy');
+        recipes = recipes.filter(recipe => recipe.difficulty.toLowerCase() === 'easy');
         break;
       case 'medium':
-        recipes = recipes.filter(recipe => recipe.difficulty === 'Medium');
+        recipes = recipes.filter(recipe => recipe.difficulty.toLowerCase() === 'medium');
         break;
       case 'hard':
-        recipes = recipes.filter(recipe => recipe.difficulty === 'Hard');
+        recipes = recipes.filter(recipe => recipe.difficulty.toLowerCase() === 'hard');
         break;
       case 'all':
       default:
