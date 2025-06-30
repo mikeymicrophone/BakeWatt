@@ -1,0 +1,85 @@
+{
+  "ingredients": [
+    {
+      "id": "baking-soda",
+      "name": "Baking Soda",
+      "defaultUnit": "teaspoons",
+      "icon": "🧂",
+      "basePrice": 0.1,
+      "description": "A leavening agent that helps baked goods rise",
+      "category": "leavening",
+      "nutrition": {
+        "caloriesPerUnit": 0,
+        "density": 4.8
+      },
+      "conversions": [
+        {
+          "unit": "teaspoons",
+          "gramsPerUnit": 4.8
+        },
+        {
+          "unit": "tablespoons", 
+          "gramsPerUnit": 14.4
+        }
+      ]
+    },
+    {
+      "id": "nutmeg",
+      "name": "Nutmeg",
+      "defaultUnit": "teaspoons",
+      "icon": "🌰",
+      "basePrice": 2.5,
+      "description": "A warm, aromatic spice perfect for desserts and baked goods",
+      "category": "spice",
+      "nutrition": {
+        "caloriesPerUnit": 12,
+        "density": 2.2
+      },
+      "conversions": [
+        {
+          "unit": "teaspoons",
+          "gramsPerUnit": 2.2
+        },
+        {
+          "unit": "tablespoons",
+          "gramsPerUnit": 6.6
+        },
+        {
+          "unit": "pinches",
+          "gramsPerUnit": 0.36
+        }
+      ]
+    },
+    {
+      "id": "brown-sugar",
+      "name": "Brown Sugar",
+      "defaultUnit": "cups",
+      "icon": "🟫",
+      "basePrice": 0.8,
+      "description": "Soft sugar with molasses, adds moisture and rich flavor",
+      "category": "sweetener",
+      "nutrition": {
+        "caloriesPerUnit": 829,
+        "density": 220
+      },
+      "conversions": [
+        {
+          "unit": "cups",
+          "gramsPerUnit": 220
+        },
+        {
+          "unit": "tablespoons",
+          "gramsPerUnit": 13.8
+        },
+        {
+          "unit": "teaspoons",
+          "gramsPerUnit": 4.6
+        },
+        {
+          "unit": "grams",
+          "gramsPerUnit": 1
+        }
+      ]
+    }
+  ]
+}

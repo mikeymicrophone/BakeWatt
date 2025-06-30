@@ -12,3 +12,4 @@ export {
   LocalStorageIngredientRepository,
   type IngredientRepository 
 } from './IngredientService';
+export { IngredientConfigService } from './IngredientConfigService';
