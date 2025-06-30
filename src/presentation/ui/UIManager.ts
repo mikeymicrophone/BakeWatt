@@ -1,4 +1,5 @@
 import { Application } from '@/core/engine/Application';
+import { RecipeShop } from '@/domain/store';
 
 export class UIManager {
   private app: Application;
@@ -792,5 +793,191 @@ export class UIManager {
         document.body.removeChild(confirmation);
       }, 300);
     }, 3000);
+  }
+
+  // Recipe Shop Methods
+  public createRecipeShopModal(): void {
+    // Remove any existing shop modal
+    const existingModal = document.getElementById('recipe-shop-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Create modal HTML
+    const shopModalHTML = `
+      <div class="recipe-shop-modal" id="recipe-shop-modal" style="display: flex;">
+        <div class="recipe-shop-content">
+          <button class="recipe-shop-close" id="recipe-shop-close">×</button>
+          
+          <div class="recipe-shop-header">
+            <div class="recipe-shop-icon">🛒</div>
+            <h1 class="recipe-shop-title">Recipe Shop</h1>
+            <p class="recipe-shop-subtitle">Discover new recipes to expand your baking skills!</p>
+          </div>
+          
+          <div class="recipe-shop-currency">
+            <div class="currency-display">
+              <span class="currency-icon">💰</span>
+              <span class="currency-amount" id="player-coins">$${this.app.gameState.store.getTotalRevenue().toFixed(2)}</span>
+              <span class="currency-label">Available Funds</span>
+            </div>
+          </div>
+          
+          <div class="recipe-shop-categories">
+            <button class="shop-category-btn active" data-category="all">🛒 All</button>
+            <button class="shop-category-btn" data-category="starter">🌟 Starter</button>
+            <button class="shop-category-btn" data-category="intermediate">🏆 Intermediate</button>
+            <button class="shop-category-btn" data-category="advanced">👑 Advanced</button>
+          </div>
+          
+          <div class="recipe-shop-grid" id="recipe-shop-grid">
+            <!-- Will be populated with purchasable recipes -->
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', shopModalHTML);
+
+    // Set up event listeners
+    this.setupRecipeShopModal();
+    
+    // Populate with all recipes
+    this.populateRecipeShop('all');
+  }
+
+  public setupRecipeShopModal(): void {
+    const modal = document.getElementById('recipe-shop-modal');
+    const closeBtn = document.getElementById('recipe-shop-close');
+    const categoryBtns = document.querySelectorAll('.shop-category-btn');
+
+    // Close button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (modal) modal.remove();
+      });
+    }
+
+    // Click outside to close
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    }
+
+    // Category buttons
+    categoryBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const category = target.dataset.category;
+        
+        // Update active state
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        target.classList.add('active');
+        
+        // Load category
+        if (category) {
+          this.populateRecipeShop(category);
+        }
+      });
+    });
+  }
+
+  public populateRecipeShop(category: string): void {
+    const shopGrid = document.getElementById('recipe-shop-grid');
+    if (!shopGrid) return;
+
+    // Get real shop recipes from RecipeShop service
+    let shopRecipes = RecipeShop.getAvailableRecipes(this.app.gameState);
+    
+    // Filter by category if specified
+    if (category !== 'all') {
+      shopRecipes = RecipeShop.filterRecipesByCategory(shopRecipes, category);
+    }
+    
+    const playerRevenue = this.app.gameState.store.getTotalRevenue();
+    
+    let recipesHTML = '';
+    shopRecipes.forEach((shopRecipe: any) => {
+      const recipe = shopRecipe.recipe;
+      const isOwned = shopRecipe.isOwned;
+      const canAfford = playerRevenue >= shopRecipe.price;
+      const meetsLevel = this.app.gameState.currentLevel >= shopRecipe.levelRequirement;
+      const isPurchasable = shopRecipe.isPurchasable;
+      
+      let statusBadge = '';
+      let buttonHTML = '';
+      
+      if (isOwned) {
+        statusBadge = '<span class="owned-badge">✅ Owned</span>';
+        buttonHTML = '<button class="btn-shop-recipe owned" disabled>Already Owned</button>';
+      } else if (shopRecipe.comingSoon) {
+        statusBadge = `<span class="coming-soon-badge">🚧 Coming Soon</span>`;
+        buttonHTML = `<button class="btn-shop-recipe coming-soon" disabled>Coming Soon - $${shopRecipe.price.toFixed(2)}</button>`;
+      } else if (!meetsLevel) {
+        statusBadge = `<span class="level-required">🔒 Level ${shopRecipe.levelRequirement}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe locked" disabled>Requires Level ${shopRecipe.levelRequirement}</button>`;
+      } else if (!canAfford) {
+        statusBadge = `<span class="price-tag expensive">💰 $${shopRecipe.price.toFixed(2)}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe expensive" disabled>Insufficient Funds ($${shopRecipe.price.toFixed(2)})</button>`;
+      } else {
+        statusBadge = `<span class="price-tag affordable">💰 $${shopRecipe.price.toFixed(2)}</span>`;
+        buttonHTML = `<button class="btn-shop-recipe purchase" onclick="appInstance.purchaseRecipe('${shopRecipe.id}')">
+          Purchase for $${shopRecipe.price.toFixed(2)}
+        </button>`;
+      }
+      
+      const cardClass = isOwned ? 'owned' : 
+                       shopRecipe.comingSoon ? 'coming-soon' :
+                       isPurchasable ? 'purchasable' : 'locked';
+      
+      recipesHTML += `
+        <div class="shop-recipe-card ${cardClass}">
+          <div class="shop-recipe-header">
+            <div class="shop-recipe-icon">${recipe.icon}</div>
+            <div class="shop-recipe-info">
+              <div class="shop-recipe-name">${recipe.name}</div>
+              <div class="shop-recipe-difficulty ${shopRecipe.category}">${shopRecipe.category.charAt(0).toUpperCase() + shopRecipe.category.slice(1)}</div>
+            </div>
+            <div class="shop-recipe-price">
+              ${statusBadge}
+            </div>
+          </div>
+          
+          <div class="shop-recipe-description">${shopRecipe.description}</div>
+          
+          <div class="shop-recipe-features">
+            <span class="recipe-feature">⏱️ ${recipe.bakingTime}min</span>
+            <span class="recipe-feature">🍽️ ${recipe.baseServings} servings</span>
+            <span class="recipe-feature">📊 ${recipe.difficulty}</span>
+          </div>
+          
+          <div class="shop-recipe-actions">
+            ${buttonHTML}
+          </div>
+        </div>
+      `;
+    });
+
+    if (shopRecipes.length === 0) {
+      recipesHTML = `
+        <div class="empty-shop-message">
+          <div class="empty-shop-icon">🛒</div>
+          <div class="empty-shop-text">No recipes available in this category</div>
+          <div class="empty-shop-hint">Try a different category or level up to unlock more recipes!</div>
+        </div>
+      `;
+    }
+
+    shopGrid.innerHTML = recipesHTML;
+    
+    // Update currency display
+    const currencyAmount = document.getElementById('player-coins');
+    if (currencyAmount) {
+      currencyAmount.textContent = `$${playerRevenue.toFixed(2)}`;
+    }
   }
 }
