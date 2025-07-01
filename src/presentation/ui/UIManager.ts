@@ -207,8 +207,32 @@ export class UIManager {
     recipes.forEach(recipe => {
       const currentServings = this.app.getCurrentServings ? this.app.getCurrentServings(recipe.id) : recipe.baseServings;
       const scaleFactor = currentServings / recipe.baseServings;
-      const scaledIngredients = recipe.ingredients.map((ing: any) => ing.multiply(scaleFactor));
-      const canMakeRecipe = gameState.pantry.canSupport(scaledIngredients);
+      
+      // Check if recipe can be made using the same logic as Application.ts
+      let canMakeRecipe = true;
+      
+      if (recipe.steps && recipe.steps.length > 0) {
+        // New multi-step recipe format
+        for (const step of recipe.steps) {
+          if (step.ingredients) {
+            for (const flexIngredient of step.ingredients) {
+              const requiredAmount = flexIngredient.getAmount() * scaleFactor;
+              const availableStock = gameState.pantry.getStock(flexIngredient.ingredient.id);
+              
+              if (availableStock < requiredAmount) {
+                canMakeRecipe = false;
+                break;
+              }
+            }
+          }
+          if (!canMakeRecipe) break;
+        }
+      } else if (recipe.ingredients) {
+        // Old recipe format fallback
+        const scaledIngredients = recipe.ingredients.map((ing: any) => ing.multiply(scaleFactor));
+        canMakeRecipe = gameState.pantry.canSupport(scaledIngredients);
+      }
+      
       const buttonClass = canMakeRecipe ? 'btn-recipe primary' : 'btn-recipe disabled';
       
       recipesHTML += `
