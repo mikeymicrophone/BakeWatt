@@ -111,8 +111,10 @@ export class StorageService {
       this.deserializePantry(gameState, saveData.pantryInventory);
       
       // Restore level and tutorial state
-      gameState.currentLevel = saveData.currentLevel;
-      gameState.tutorialCompleted = saveData.tutorialCompleted;
+      gameState.setLevel(saveData.currentLevel);
+      if (saveData.tutorialCompleted) {
+        gameState.completeTutorial();
+      }
 
       // TODO: Restore unlocked recipes when recipe unlocking system is implemented
       // TODO: Add baker coins to game state and restore them
@@ -186,9 +188,9 @@ export class StorageService {
       const difference = amount - currentStock;
       
       if (difference > 0) {
-        gameState.pantry.addStock(ingredientId, difference);
+        gameState.pantry.addIngredient(ingredientId, difference);
       } else if (difference < 0) {
-        gameState.pantry.useStock(ingredientId, Math.abs(difference));
+        gameState.pantry.removeIngredient(ingredientId, Math.abs(difference));
       }
     });
   }

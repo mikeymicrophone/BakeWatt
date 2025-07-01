@@ -20,6 +20,7 @@
     "cap:copy": "npx cap copy"
   },
   "dependencies": {
+    "@adobe/lit-mobx": "^2.2.2",
     "@capacitor/cli": "^7.4.0",
     "@capacitor/core": "^7.4.0",
     "@capacitor/ios": "^7.4.0",

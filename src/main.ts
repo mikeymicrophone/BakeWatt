@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { Application } from '@/core/engine/Application';
+// Import pantry components to register them
+import '@/presentation/components/pantry';
 
 async function main() {
   try {
