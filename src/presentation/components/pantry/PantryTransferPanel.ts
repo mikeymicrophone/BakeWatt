@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { observable, computed } from 'mobx';
 import { MobxLitElement } from '@adobe/lit-mobx';
@@ -18,49 +18,15 @@ export class PantryTransferPanel extends MobxLitElement {
   
   private bakingCounter = new BakingCounter();
 
-  static styles = css`
-    :host {
-      display: block;
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 300px;
-      background: rgba(0, 0, 0, 0.8);
-      border-radius: 8px;
-      padding: 20px;
-      color: white;
-      font-family: inherit;
-      pointer-events: auto;
-      max-height: calc(100vh - 40px);
-      overflow-y: auto;
-    }
+  constructor() {
+    super();
+    this.selectedIngredientId = null;
+    this.isVisible = false;
+  }
 
-    :host([hidden]) {
-      display: none;
-    }
-
-    .transfer-info {
-      margin-bottom: 15px;
-    }
-
-    .transfer-info p {
-      margin: 0 0 15px 0;
-      font-size: 14px;
-      color: #ccc;
-    }
-
-    h3 {
-      margin: 0 0 15px 0;
-      color: white;
-      font-size: 18px;
-    }
-
-    h4 {
-      margin: 0 0 10px 0;
-      color: white;
-      font-size: 14px;
-    }
-  `;
+  protected createRenderRoot() {
+    return this; // light DOM
+  }
 
   @computed
   get pantryIngredients() {
@@ -116,26 +82,20 @@ export class PantryTransferPanel extends MobxLitElement {
     const { ingredientId, amount } = e.detail;
     
     try {
-      // Remove from pantry
       this.ingredientService.removeFromPantry(ingredientId, amount);
-      
-      // Add to baking counter
       const ingredient = Object.values(STARTER_INGREDIENTS).find(ing => ing.id === ingredientId);
       if (ingredient) {
         this.bakingCounter.stageIngredient(ingredient, amount);
       }
       
-      // Show success notification
       this.dispatchEvent(new CustomEvent('transfer-success', {
         detail: { ingredientId, amount },
         bubbles: true
       }));
       
-      // Clear selection
       this.selectedIngredientId = null;
       
     } catch (error) {
-      // Show error notification
       this.dispatchEvent(new CustomEvent('transfer-error', {
         detail: { message: error instanceof Error ? error.message : String(error) },
         bubbles: true
