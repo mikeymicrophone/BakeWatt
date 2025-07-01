@@ -89,6 +89,65 @@ export class GameStateFactory {
   }
 
   /**
+   * Create development game state with sample store items for testing
+   */
+  public static createDevelopmentGameState(): GameState {
+    const pantry = new Pantry();
+    pantry.addIngredient(STARTER_INGREDIENTS.FLOUR.id, 25);
+    pantry.addIngredient(STARTER_INGREDIENTS.BUTTER.id, 10);
+    pantry.addIngredient(STARTER_INGREDIENTS.EGGS.id, 20);
+    pantry.addIngredient(STARTER_INGREDIENTS.SUGAR.id, 99);
+    pantry.addIngredient(STARTER_INGREDIENTS.CHOCOLATE.id, 50);
+    pantry.addIngredient(STARTER_INGREDIENTS.VANILLA.id, 10);
+
+    const recipes = new RecipeCollection();
+    RecipeLibrary.getAllRecipes().forEach(recipe => {
+      recipes.addRecipe(recipe);
+    });
+
+    const store = new Store();
+    
+    // Add sample store items for testing
+    store.addItem({
+      id: 'dev-cookies-1',
+      name: 'Chocolate Chip Cookies Package',
+      icon: '🍪',
+      basePrice: 12.50,
+      quantity: 8,
+      category: 'packages',
+      recipeId: 'simple-cookies',
+      productionMethod: 'manual',
+      addedAt: new Date()
+    });
+
+    store.addItem({
+      id: 'dev-bread-1', 
+      name: 'Artisan Bread Loaf',
+      icon: '🍞',
+      basePrice: 8.75,
+      quantity: 5,
+      category: 'baked_goods',
+      recipeId: 'basic-bread',
+      productionMethod: 'manual',
+      addedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+    });
+
+    store.addItem({
+      id: 'dev-muffins-1',
+      name: 'Blueberry Muffin Box',
+      icon: '🧁',
+      basePrice: 15.25,
+      quantity: 12,
+      category: 'packages',
+      recipeId: 'blueberry-muffins',
+      productionMethod: 'automated',
+      addedAt: new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
+    });
+
+    return new GameState(pantry, recipes, store, 3, true); // Mid-level, tutorial complete
+  }
+
+  /**
    * Validate initial game state meets requirements
    */
   public static validateInitialGameState(gameState: GameState): {

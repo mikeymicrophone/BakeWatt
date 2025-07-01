@@ -20,7 +20,7 @@ import { PricingService } from '@/domain/pricing/PricingService';
 import { RecipeShop } from '@/domain/store';
 import { UIManager } from '@/presentation/ui/UIManager';
 import '@/presentation/components/StoreItemCard';
-import '@/presentation/components/StoreItemCard';
+import '@/presentation/components/FlexibleIngredientGrid';
 
 export class Application {
   @observable private _isInitialized: boolean = false;
@@ -131,6 +131,15 @@ export class Application {
   }
 
   private initializeGameState(): GameState {
+    // Development mode: use seeded store for easier testing
+    const isDevelopment = import.meta.env.DEV || false;
+    const useDevelopmentState = isDevelopment && window.location.search.includes('dev-store');
+    
+    if (useDevelopmentState) {
+      console.log('🛠️ Using development state with seeded store items');
+      return GameStateFactory.createDevelopmentGameState();
+    }
+    
     // Try to load saved game state
     const savedData = StorageService.loadGameState();
     
@@ -1115,7 +1124,63 @@ export class Application {
   }
 
   /**
-   * Transfer flexible ingredient with selected amount
+   * Transfer flexible ingredient with selected amount from event
+   */
+  @action
+  public transferFlexibleIngredientWithAmount(ingredientId: string, selectedAmount: number): void {
+    // Ensure selection doesn't exceed 10x10 grid (100 cells)
+    if (selectedAmount > 100) {
+      alert(`Selection too large! Maximum is 100 (10x10 grid). Current: ${selectedAmount}`);
+      return;
+    }
+    
+    const availableInPantry = this._gameState.pantry.getStock(ingredientId);
+    
+    if (availableInPantry < selectedAmount) {
+      alert(`Not enough ${ingredientId} in pantry! Available: ${availableInPantry}, needed: ${selectedAmount}`);
+      return;
+    }
+
+    // Check if amount is within valid range
+    const currentStep = this._currentRecipe?.getStep(this._currentStep);
+    if (!currentStep) return;
+    
+    const flexIngredient = currentStep.ingredients.find((fi: any) => fi.ingredient.id === ingredientId);
+    if (!flexIngredient || !flexIngredient.range) return;
+    
+    const range = flexIngredient.range;
+    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+    
+    if (selectedAmount < scaledMin) {
+      alert(`Amount too low! Minimum required: ${scaledMin} ${flexIngredient.ingredient.unit}`);
+      return;
+    }
+    
+    if (selectedAmount > scaledMax) {
+      alert(`Amount too high! Maximum allowed: ${scaledMax} ${flexIngredient.ingredient.unit}`);
+      return;
+    }
+
+    // Remove from pantry
+    this._gameState.pantry.removeIngredient(ingredientId, selectedAmount);
+    
+    // Add to baking counter
+    const currentAmount = this._bakingCounter.get(ingredientId) || 0;
+    this._bakingCounter.set(ingredientId, currentAmount + selectedAmount);
+
+    console.log(`🔄 Transferred ${selectedAmount} ${ingredientId} to baking counter from Lit component`);
+
+    // Update displays
+    if (currentStep) {
+      this.populateIngredientZones(currentStep);
+      this.updateBakingCounter();
+      this.updateProceedButton();
+    }
+  }
+
+  /**
+   * Transfer flexible ingredient with selected amount (legacy method using sliders)
    */
   @action
   public transferFlexibleIngredient(ingredientId: string): void {
@@ -1183,7 +1248,8 @@ export class Application {
     const zonesEl = document.getElementById('ingredient-zones-list');
     if (!zonesEl) return;
 
-    let zonesHTML = '';
+    // Clear existing content
+    zonesEl.innerHTML = '';
 
     step.ingredients.forEach((flexIngredient: any, index: number) => {
       const ingredient = flexIngredient.ingredient;
@@ -1191,38 +1257,40 @@ export class Application {
       const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
       
       if (flexIngredient.isFixed) {
-        // Fixed ingredient - use traditional transfer system
+        // Fixed ingredient - use traditional HTML approach
         const baseAmount = flexIngredient.fixedAmount;
         const neededAmount = baseAmount * this._currentRecipeScalingFactor;
         const isTransferred = transferredAmount >= neededAmount;
         const canTransfer = availableInPantry >= neededAmount && !isTransferred;
 
-        zonesHTML += `
-          <div class="ingredient-zone ${isTransferred ? 'transferred' : 'needed'}">
-            <div class="ingredient-zone-header">
-              <div class="ingredient-zone-name">
-                <span>${ingredient.icon}</span>
-                <span>${ingredient.name}</span>
-              </div>
-              <div class="ingredient-zone-amount">${this.formatAmount(neededAmount)} ${ingredient.unit}</div>
+        const fixedZone = document.createElement('div');
+        fixedZone.className = `ingredient-zone ${isTransferred ? 'transferred' : 'needed'}`;
+        fixedZone.innerHTML = `
+          <div class="ingredient-zone-header">
+            <div class="ingredient-zone-name">
+              <span>${ingredient.icon}</span>
+              <span>${ingredient.name}</span>
             </div>
-            <div class="ingredient-zone-status">
-              ${isTransferred ? 
-                '✅ Transferred to counter' : 
-                `Available: ${availableInPantry} ${ingredient.unit}`
-              }
-            </div>
-            <div class="ingredient-zone-transfer">
-              <button class="btn-transfer" 
-                ${canTransfer ? '' : 'disabled'} 
-                onclick="window.appInstance.transferIngredient('${ingredient.id}', ${neededAmount})">
-                ${isTransferred ? 'Transferred' : 'Transfer to Counter'}
-              </button>
-            </div>
+            <div class="ingredient-zone-amount">${this.formatAmount(neededAmount)} ${ingredient.unit}</div>
+          </div>
+          <div class="ingredient-zone-status">
+            ${isTransferred ? 
+              '✅ Transferred to counter' : 
+              `Available: ${availableInPantry} ${ingredient.unit}`
+            }
+          </div>
+          <div class="ingredient-zone-transfer">
+            <button class="btn-transfer" 
+              ${canTransfer ? '' : 'disabled'} 
+              onclick="window.appInstance.transferIngredient('${ingredient.id}', ${neededAmount})">
+              ${isTransferred ? 'Transferred' : 'Transfer to Counter'}
+            </button>
           </div>
         `;
+        zonesEl.appendChild(fixedZone);
+        
       } else if (flexIngredient.range) {
-        // Flexible ingredient - use grid-based selection system
+        // Flexible ingredient - use Lit component
         const range = flexIngredient.range;
         const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
         const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
@@ -1233,76 +1301,44 @@ export class Application {
         const isTransferred = transferredAmount > 0;
         const canTransfer = availableInPantry >= scaledMin && !isTransferred;
 
-        zonesHTML += `
-          <div class="ingredient-zone flexible ${isTransferred ? 'transferred' : 'needed'}" data-ingredient-id="${ingredient.id}">
-            <div class="ingredient-zone-header">
-              <div class="ingredient-zone-name">
-                <span>${ingredient.icon}</span>
-                <span>${ingredient.name}</span>
-              </div>
-              <div class="ingredient-zone-amount flexible-amount">
-                <span id="flexible-amount-${ingredient.id}">${this.formatAmount(currentAmount)}</span> ${ingredient.unit}
-                <small>(${this.formatAmount(scaledMin)}-${this.formatAmount(scaledMax)} range)</small>
-              </div>
-            </div>
-            
-            ${!isTransferred ? `
-            <div class="grid-control-section">
-              <div class="grid-sliders">
-                <div class="slider-group">
-                  <input type="range" class="grid-slider" id="width-slider-${ingredient.id}" 
-                         min="1" max="10" value="5" 
-                         onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
-                  <span id="width-value-${ingredient.id}">5</span>
-                </div>
-                <div class="slider-group">
-                  <input type="range" class="grid-slider" id="height-slider-${ingredient.id}" 
-                         min="1" max="10" value="4" 
-                         onchange="window.appInstance.updateIngredientGrid('${ingredient.id}')">
-                  <span id="height-value-${ingredient.id}">4</span>
-                </div>
-              </div>
-              
-              <div class="ingredient-grid-container" id="grid-container-${ingredient.id}">
-                ${this.generateFlexibleIngredientGrid(scaledMin, scaledMax, currentAmount, 5, 4)}
-              </div>
-              
-              <div class="grid-legend">
-                <div class="legend-item">
-                  <div class="legend-color min-required"></div>
-                  <span>Minimum Required (${this.formatAmount(scaledMin)})</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color max-allowed"></div>
-                  <span>Maximum Allowed (${this.formatAmount(scaledMax)})</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color selected"></div>
-                  <span>Current Selection</span>
-                </div>
-              </div>
-            </div>
-            ` : ''}
-            
-            <div class="ingredient-zone-status">
-              ${isTransferred ? 
-                '✅ Transferred to counter' : 
-                `Available: ${availableInPantry} ${ingredient.unit}`
-              }
-            </div>
-            <div class="ingredient-zone-transfer">
-              <button class="btn-transfer" 
-                ${canTransfer ? '' : 'disabled'} 
-                onclick="window.appInstance.transferFlexibleIngredient('${ingredient.id}')">
-                ${isTransferred ? 'Transferred' : 'Transfer Selected Amount'}
-              </button>
-            </div>
-          </div>
-        `;
+        // Create the Lit component
+        const flexibleGrid = document.createElement('flexible-ingredient-grid') as any;
+        flexibleGrid.ingredient = {
+          id: ingredient.id,
+          name: ingredient.name,
+          icon: ingredient.icon,
+          unit: ingredient.unit,
+          scaledMin,
+          scaledMax,
+          currentAmount,
+          availableInPantry,
+          isTransferred,
+          canTransfer
+        };
+
+        // Set up event listeners for the component
+        flexibleGrid.addEventListener('amount-changed', (e: CustomEvent) => {
+          // Update the baking counter amount
+          this.updateFlexibleIngredientAmount(e.detail.ingredientId, e.detail.amount);
+        });
+
+        flexibleGrid.addEventListener('transfer-ingredient', (e: CustomEvent) => {
+          this.transferFlexibleIngredientWithAmount(e.detail.ingredientId, e.detail.amount);
+        });
+
+        zonesEl.appendChild(flexibleGrid);
       }
     });
+  }
 
-    zonesEl.innerHTML = zonesHTML;
+  /**
+   * Update the amount for a flexible ingredient without transferring it yet
+   */
+  private updateFlexibleIngredientAmount(ingredientId: string, amount: number): void {
+    // Store the selected amount for this ingredient (could use a Map for this)
+    console.log(`🎛️ Updated flexible ingredient ${ingredientId} amount to ${amount}`);
+    // For now, we'll let the transfer button handle the actual transfer
+    // But this method allows us to track the user's selection
   }
 
   @action

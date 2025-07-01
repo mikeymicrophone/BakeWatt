@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 @customElement('store-item-card')
@@ -26,47 +26,7 @@ export class StoreItemCard extends LitElement {
     return this; // renders into light DOM instead of shadow
   }
 
-  static styles = css`
-    :host {
-      display: block;
-      border: 1px solid var(--card-border, #ddd);
-      border-radius: 8px;
-      padding: 8px 10px;
-      background: #fff;
-    }
-    .store-item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .store-item-info {
-      display: flex;
-      gap: 8px;
-    }
-    .store-item-icon {
-      font-size: 24px;
-    }
-    .store-item-name {
-      margin: 0;
-      font-size: 1rem;
-    }
-    .store-item-quantity {
-      font-size: 0.8rem;
-      color: #666;
-    }
-    .store-item-price {
-      font-weight: bold;
-    }
-    .pricing-modifiers {
-      margin-top: 4px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      row-gap: 2px;
-      font-size: 0.75rem;
-    }
-    .positive { color: green; }
-    .negative { color: red; }
-  `;
+  // No shadow DOM styles needed - using global CSS
 
   private sell() {
     if (this.item?.id) {
