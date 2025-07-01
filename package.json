@@ -6,24 +6,32 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:quick": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "docs:functions": "ts-node scripts/generateFunctionDocs.ts"
+    "docs:functions": "ts-node scripts/generateFunctionDocs.ts",
+    "cap:build": "npm run build:quick && npx cap copy",
+    "cap:ios": "npm run cap:build && npx cap open ios",
+    "cap:sync": "npx cap sync",
+    "cap:copy": "npx cap copy"
   },
   "dependencies": {
+    "@capacitor/cli": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/ios": "^7.4.0",
     "@tweenjs/tween.js": "^21.0.0",
     "class-transformer": "^0.5.1",
     "fp-ts": "^2.16.1",
     "inversify": "^6.0.2",
+    "lit": "^3.1.0",
     "mobx": "^6.12.0",
     "mobx-react-lite": "^4.0.5",
     "reflect-metadata": "^0.2.2",
-    "three": "^0.158.0",
-    "lit": "^3.1.0"
+    "three": "^0.158.0"
   },
   "devDependencies": {
     "@types/three": "^0.158.3",
@@ -32,10 +40,10 @@
     "@vitest/coverage-v8": "^1.6.1",
     "eslint": "^8.55.0",
     "jsdom": "^26.1.0",
+    "ts-morph": "^18.0.0",
+    "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
-    "vitest": "^1.0.4",
-    "ts-node": "^10.9.1",
-    "ts-morph": "^18.0.0"
+    "vitest": "^1.0.4"
   }
 }
