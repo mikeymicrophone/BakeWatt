@@ -206,6 +206,7 @@ export class Application {
     
     // Set up auto-save functionality
     this.setupAutoSave();
+    this.setupFlexibleIngredientEvents();
     
     this._isInitialized = true;
   }
@@ -229,6 +230,35 @@ export class Application {
         StorageService.saveGameState(this._gameState);
       }
     });
+  }
+
+  /**
+   * Set up one-time event listeners for flexible ingredient components
+   */
+  private setupFlexibleIngredientEvents(): void {
+    // Remove any existing listeners to avoid duplicates
+    document.removeEventListener('amount-changed', this.handleFlexibleIngredientAmountChange);
+    document.removeEventListener('transfer-ingredient', this.handleFlexibleIngredientTransfer);
+    
+    // Add single delegated listeners
+    document.addEventListener('amount-changed', this.handleFlexibleIngredientAmountChange.bind(this));
+    document.addEventListener('transfer-ingredient', this.handleFlexibleIngredientTransfer.bind(this));
+  }
+
+  /**
+   * Handle amount-changed events from flexible ingredient components
+   */
+  private handleFlexibleIngredientAmountChange = (e: Event): void => {
+    const customEvent = e as CustomEvent;
+    this.updateFlexibleIngredientAmount(customEvent.detail.ingredientId, customEvent.detail.amount);
+  }
+
+  /**
+   * Handle transfer-ingredient events from flexible ingredient components  
+   */
+  private handleFlexibleIngredientTransfer = (e: Event): void => {
+    const customEvent = e as CustomEvent;
+    this.transferFlexibleIngredientWithAmount(customEvent.detail.ingredientId, customEvent.detail.amount);
   }
 
   private setupUI(): void {
@@ -1036,92 +1066,6 @@ export class Application {
   /**
    * Generate HTML for flexible ingredient grid with custom dimensions
    */
-  /**
-   * ⭐ FLEXIBLE INGREDIENT GRID GENERATOR ⭐
-   * 
-   * This method generates a fixed 10x10 grid (100 cells) for flexible ingredients.
-   * User selection is shown as a rectangle within this fixed grid backdrop.
-   * 
-   * GRID VISUALIZATION:
-   * - Red cells (min-required): Minimum quantity needed
-   * - Orange cells (max-allowed): Maximum quantity allowed  
-   * - Purple cells (selected): Currently selected amount (width x height rectangle)
-   * - Empty cells: Unused cells in the 10x10 grid
-   */
-  private generateFlexibleIngredientGrid(minAmount: number, maxAmount: number, currentAmount: number, width: number, height: number): string {
-    const FIXED_GRID_SIZE = 10; // Fixed 10x10 grid
-    const totalCells = FIXED_GRID_SIZE * FIXED_GRID_SIZE; // Always 100 cells
-    const selectedAmount = Math.min(currentAmount, totalCells);
-    
-    // Fixed 10x10 grid with consistent cell sizes
-    let gridHTML = `<div class="flexible-ingredient-grid fixed-grid" style="display: grid; grid-template-columns: repeat(${FIXED_GRID_SIZE}, 20px); grid-template-rows: repeat(${FIXED_GRID_SIZE}, 20px); gap: 2px; margin: 10px auto; width: fit-content;">`;
-    
-    for (let i = 0; i < totalCells; i++) {
-      let cellClass = 'grid-cell';
-      const row = Math.floor(i / FIXED_GRID_SIZE);
-      const col = i % FIXED_GRID_SIZE;
-      
-      // Color coding: Red = minimum required, Orange = maximum allowed
-      if (i < minAmount) {
-        cellClass += ' min-required';    // Red gradient
-      } else if (i < maxAmount) {
-        cellClass += ' max-allowed';     // Orange gradient  
-      } else {
-        cellClass += ' empty';           // Transparent
-      }
-      
-      // Purple overlay for currently selected rectangle (width x height)
-      // Show selection as a rectangle starting from top-left
-      if (row < height && col < width) {
-        cellClass += ' selected';        // Purple gradient (overrides other colors)
-      }
-      
-      gridHTML += `<div class="${cellClass}" data-cell-index="${i}" data-row="${row}" data-col="${col}"></div>`;
-    }
-    
-    gridHTML += '</div>';
-    return gridHTML;
-  }
-
-  /**
-   * Update ingredient grid when sliders change
-   */
-  @action
-  public updateIngredientGrid(ingredientId: string): void {
-    const widthSlider = document.getElementById(`width-slider-${ingredientId}`) as HTMLInputElement;
-    const heightSlider = document.getElementById(`height-slider-${ingredientId}`) as HTMLInputElement;
-    const widthValue = document.getElementById(`width-value-${ingredientId}`);
-    const heightValue = document.getElementById(`height-value-${ingredientId}`);
-    const amountDisplay = document.getElementById(`flexible-amount-${ingredientId}`);
-    const gridContainer = document.getElementById(`grid-container-${ingredientId}`);
-    
-    if (!widthSlider || !heightSlider || !gridContainer) return;
-    
-    const width = parseInt(widthSlider.value);
-    const height = parseInt(heightSlider.value);
-    const selectedAmount = width * height;
-    
-    // Update slider value displays
-    if (widthValue) widthValue.textContent = width.toString();
-    if (heightValue) heightValue.textContent = height.toString();
-    
-    // Update amount display
-    if (amountDisplay) amountDisplay.textContent = this.formatAmount(selectedAmount);
-    
-    // Find the current step and ingredient to get min/max bounds
-    const currentStep = this._currentRecipe?.getStep(this._currentStep);
-    if (!currentStep) return;
-    
-    const flexIngredient = currentStep.ingredients.find((fi: any) => fi.ingredient.id === ingredientId);
-    if (!flexIngredient || !flexIngredient.range) return;
-    
-    const range = flexIngredient.range;
-    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
-    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
-    
-    // Update grid display
-    gridContainer.innerHTML = this.generateFlexibleIngredientGrid(scaledMin, scaledMax, selectedAmount, width, height);
-  }
 
   /**
    * Transfer flexible ingredient with selected amount from event
@@ -1248,16 +1192,22 @@ export class Application {
     const zonesEl = document.getElementById('ingredient-zones-list');
     if (!zonesEl) return;
 
-    // Clear existing content
-    zonesEl.innerHTML = '';
+    // Get existing components by ingredient ID
+    const existingComponents = new Map<string, HTMLElement>();
+    zonesEl.querySelectorAll('[data-ingredient-id]').forEach(el => {
+      const id = el.getAttribute('data-ingredient-id');
+      if (id) existingComponents.set(id, el as HTMLElement);
+    });
 
+    // Process each ingredient in the step
     step.ingredients.forEach((flexIngredient: any, index: number) => {
       const ingredient = flexIngredient.ingredient;
-      const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
-      const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
+      const existingComponent = existingComponents.get(ingredient.id);
       
       if (flexIngredient.isFixed) {
         // Fixed ingredient - use traditional HTML approach
+        const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
+        const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
         const baseAmount = flexIngredient.fixedAmount;
         const neededAmount = baseAmount * this._currentRecipeScalingFactor;
         const isTransferred = transferredAmount >= neededAmount;
@@ -1265,6 +1215,7 @@ export class Application {
 
         const fixedZone = document.createElement('div');
         fixedZone.className = `ingredient-zone ${isTransferred ? 'transferred' : 'needed'}`;
+        fixedZone.setAttribute('data-ingredient-id', ingredient.id);
         fixedZone.innerHTML = `
           <div class="ingredient-zone-header">
             <div class="ingredient-zone-name">
@@ -1287,58 +1238,128 @@ export class Application {
             </button>
           </div>
         `;
-        zonesEl.appendChild(fixedZone);
+        
+        if (existingComponent && existingComponent.parentNode === zonesEl) {
+          // Replace existing component (fixed or flexible)
+          zonesEl.replaceChild(fixedZone, existingComponent);
+        } else {
+          // Remove existing component if it exists but isn't a direct child
+          if (existingComponent) {
+            existingComponent.remove();
+          }
+          zonesEl.appendChild(fixedZone);
+        }
+        
+        existingComponents.delete(ingredient.id); // Mark as handled
         
       } else if (flexIngredient.range) {
         // Flexible ingredient - use Lit component
-        const range = flexIngredient.range;
-        const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
-        const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
-        const scaledRecommended = Math.ceil((range.recommended || range.min) * this._currentRecipeScalingFactor);
-        
-        // Start with recommended amount if nothing transferred yet
-        const currentAmount = transferredAmount || scaledRecommended;
-        const isTransferred = transferredAmount > 0;
-        const canTransfer = availableInPantry >= scaledMin && !isTransferred;
-
-        // Create the Lit component
-        const flexibleGrid = document.createElement('flexible-ingredient-grid') as any;
-        flexibleGrid.ingredient = {
-          id: ingredient.id,
-          name: ingredient.name,
-          icon: ingredient.icon,
-          unit: ingredient.unit,
-          scaledMin,
-          scaledMax,
-          currentAmount,
-          availableInPantry,
-          isTransferred,
-          canTransfer
-        };
-
-        // Set up event listeners for the component
-        flexibleGrid.addEventListener('amount-changed', (e: CustomEvent) => {
-          // Update the baking counter amount
-          this.updateFlexibleIngredientAmount(e.detail.ingredientId, e.detail.amount);
-        });
-
-        flexibleGrid.addEventListener('transfer-ingredient', (e: CustomEvent) => {
-          this.transferFlexibleIngredientWithAmount(e.detail.ingredientId, e.detail.amount);
-        });
-
-        zonesEl.appendChild(flexibleGrid);
+        if (existingComponent && existingComponent.tagName === 'FLEXIBLE-INGREDIENT-GRID') {
+          // Update existing component
+          this.updateExistingFlexibleComponent(existingComponent as any, flexIngredient);
+          existingComponents.delete(ingredient.id); // Mark as handled
+        } else {
+          // Create new component
+          const newComponent = this.createFlexibleComponent(flexIngredient);
+          newComponent.setAttribute('data-ingredient-id', ingredient.id);
+          
+          // Event listeners are handled globally by setupFlexibleIngredientEvents()
+          
+          if (existingComponent && existingComponent.parentNode === zonesEl) {
+            zonesEl.replaceChild(newComponent, existingComponent);
+          } else {
+            // Remove existing component if it exists but isn't a direct child
+            if (existingComponent) {
+              existingComponent.remove();
+            }
+            zonesEl.appendChild(newComponent);
+          }
+          
+          existingComponents.delete(ingredient.id); // Mark as handled
+        }
       }
     });
+
+    // Remove any leftover components that aren't in the current step
+    existingComponents.forEach(component => component.remove());
+  }
+
+  /**
+   * Update an existing FlexibleIngredientGrid component with new data
+   */
+  private updateExistingFlexibleComponent(component: any, flexIngredient: any): void {
+    const ingredient = flexIngredient.ingredient;
+    const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
+    const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
+    const range = flexIngredient.range;
+    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+    const scaledRecommended = Math.ceil((range.recommended || range.min) * this._currentRecipeScalingFactor);
+    const currentAmount = transferredAmount || scaledRecommended;
+    const isTransferred = transferredAmount > 0;
+    const canTransfer = availableInPantry >= scaledMin && !isTransferred;
+
+    // Update component properties (triggers re-render)
+    component.ingredient = {
+      id: ingredient.id,
+      name: ingredient.name,
+      icon: ingredient.icon,
+      unit: ingredient.unit,
+      scaledMin,
+      scaledMax,
+      currentAmount,
+      availableInPantry,
+      isTransferred,
+      canTransfer
+    };
+  }
+
+  /**
+   * Create a new FlexibleIngredientGrid component
+   */
+  private createFlexibleComponent(flexIngredient: any): any {
+    const ingredient = flexIngredient.ingredient;
+    const availableInPantry = this._gameState.pantry.getStock(ingredient.id);
+    const transferredAmount = this._bakingCounter.get(ingredient.id) || 0;
+    const range = flexIngredient.range;
+    const scaledMin = Math.ceil(range.min * this._currentRecipeScalingFactor);
+    const scaledMax = Math.ceil(range.max * this._currentRecipeScalingFactor);
+    const scaledRecommended = Math.ceil((range.recommended || range.min) * this._currentRecipeScalingFactor);
+    const currentAmount = transferredAmount || scaledRecommended;
+    const isTransferred = transferredAmount > 0;
+    const canTransfer = availableInPantry >= scaledMin && !isTransferred;
+
+    // Create the Lit component
+    const flexibleGrid = document.createElement('flexible-ingredient-grid') as any;
+    flexibleGrid.ingredient = {
+      id: ingredient.id,
+      name: ingredient.name,
+      icon: ingredient.icon,
+      unit: ingredient.unit,
+      scaledMin,
+      scaledMax,
+      currentAmount,
+      availableInPantry,
+      isTransferred,
+      canTransfer
+    };
+
+    return flexibleGrid;
   }
 
   /**
    * Update the amount for a flexible ingredient without transferring it yet
    */
   private updateFlexibleIngredientAmount(ingredientId: string, amount: number): void {
-    // Store the selected amount for this ingredient (could use a Map for this)
+    // Find the component and update its current amount
+    const component = document.querySelector(`flexible-ingredient-grid[data-ingredient-id="${ingredientId}"]`) as any;
+    if (component && component.ingredient) {
+      component.ingredient = {
+        ...component.ingredient,
+        currentAmount: amount
+      };
+    }
     console.log(`🎛️ Updated flexible ingredient ${ingredientId} amount to ${amount}`);
-    // For now, we'll let the transfer button handle the actual transfer
-    // But this method allows us to track the user's selection
   }
 
   @action

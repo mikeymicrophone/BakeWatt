@@ -141,7 +141,12 @@ export class ProductionService {
 
     const outputTerm = this.getRecipeOutputTerm(this._currentRecipe);
     
-    if (initialMath) initialMath.textContent = `Recipe produces ${initialItems} ${outputTerm}`;
+    // Calculate nutrition for the initial items
+    const nutrition = this._currentRecipe.calculateScaledNutrition(this._currentRecipeScalingFactor * initialItems);
+    
+    if (initialMath) {
+      initialMath.textContent = `Recipe produces ${initialItems} ${outputTerm} (${Math.round(nutrition.totalGrams)}g, ${Math.round(nutrition.totalCalories)} cal)`;
+    }
     if (cuttingMath) cuttingMath.textContent = `${initialItems} ${outputTerm} × ${piecesPerItem} pieces each = ${totalPieces} pieces`;
     
     // Show precise division with quotient and remainder
@@ -168,7 +173,9 @@ export class ProductionService {
     const cuttingTotal = document.getElementById('cutting-total');
     const packagingTotal = document.getElementById('packaging-total');
 
-    if (initialTotal) initialTotal.textContent = `Total: ${initialItems} ${outputTerm}`;
+    if (initialTotal) {
+      initialTotal.textContent = `Total: ${initialItems} ${outputTerm} (${Math.round(nutrition.totalGrams)}g, ${Math.round(nutrition.totalCalories)} cal)`;
+    }
     if (cuttingTotal) cuttingTotal.textContent = `Total: ${totalPieces} pieces`;
     
     // Show packages and loose pieces

@@ -144,6 +144,12 @@ export class FlexibleIngredientGrid extends LitElement {
   }
 
   private updateGrid() {
+    // Safety check: don't update if component is not connected to DOM
+    if (!this.isConnected) {
+      console.warn('FlexibleIngredientGrid: Component not connected, skipping update');
+      return;
+    }
+    
     const widthSlider = this.querySelector(`#width-slider-${this.ingredient.id}`) as HTMLInputElement;
     const heightSlider = this.querySelector(`#height-slider-${this.ingredient.id}`) as HTMLInputElement;
     
@@ -160,32 +166,19 @@ export class FlexibleIngredientGrid extends LitElement {
     this.gridWidth = newWidth;
     this.gridHeight = newHeight;
     
-    // Update amount
+    // Calculate new amount
     const newAmount = this.gridWidth * this.gridHeight;
     const clampedAmount = Math.max(this.ingredient.scaledMin, Math.min(this.ingredient.scaledMax, newAmount));
     
     console.log(`📊 Amount: ${this.ingredient.currentAmount} → ${clampedAmount} (${this.gridWidth}x${this.gridHeight})`);
     
-    // Update the ingredient data to trigger re-render
-    this.ingredient = {
-      ...this.ingredient,
-      currentAmount: clampedAmount
-    };
-    
-    // Notify parent about the amount change
+    // Only dispatch event - let Application manage the data
     this.dispatchEvent(new CustomEvent('amount-changed', {
       detail: { ingredientId: this.ingredient.id, amount: clampedAmount },
       bubbles: true
     }));
     
-    // Update slider value displays
-    const widthDisplay = this.querySelector(`#width-value-${this.ingredient.id}`);
-    const heightDisplay = this.querySelector(`#height-value-${this.ingredient.id}`);
-    if (widthDisplay) widthDisplay.textContent = this.gridWidth.toString();
-    if (heightDisplay) heightDisplay.textContent = this.gridHeight.toString();
-    
-    // Trigger re-render
-    this.requestUpdate();
+    // Component will re-render when Application updates the ingredient property
   }
 
   private formatAmount(amount: number): string {
@@ -238,34 +231,6 @@ export class FlexibleIngredientGrid extends LitElement {
     return squares;
   }
 
-  private generateGrid(): string {
-    // Fallback for innerHTML updates - deprecated
-    if (!this.ingredient) return '';
-    
-    const totalSquares = this.gridWidth * this.gridHeight;
-    const { scaledMin, scaledMax, currentAmount } = this.ingredient;
-    
-    let gridHTML = '<div class="ingredient-grid">';
-    
-    for (let i = 0; i < totalSquares; i++) {
-      let squareClass = 'grid-square';
-      
-      if (i < scaledMin) {
-        squareClass += ' min-required';
-      } else if (i < scaledMax) {
-        squareClass += ' max-allowed';
-      }
-      
-      if (i < currentAmount) {
-        squareClass += ' selected';
-      }
-      
-      gridHTML += `<div class="${squareClass}"></div>`;
-    }
-    
-    gridHTML += '</div>';
-    return gridHTML;
-  }
 
   private transfer() {
     if (this.ingredient?.canTransfer) {
