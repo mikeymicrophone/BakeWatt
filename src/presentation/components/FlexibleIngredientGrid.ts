@@ -19,11 +19,13 @@ export class FlexibleIngredientGrid extends LitElement {
   @property({ type: Object, attribute: false })
   declare ingredient: FlexibleIngredientData;
 
-  @property({ type: Number, attribute: false })
+  @property({ type: Number })
   declare gridWidth: number;
 
-  @property({ type: Number, attribute: false })
+  @property({ type: Number })
   declare gridHeight: number;
+
+  private _cachedDisplayDimensions: {maxWidth: number, maxHeight: number, minWidth: number, minHeight: number} | null = null;
 
   constructor() {
     super();
@@ -44,19 +46,125 @@ export class FlexibleIngredientGrid extends LitElement {
   }
 
   /**
+   * Calculate optimal grid dimensions that prefer square-like layouts
+   * @param target The target number to represent
+   * @param allowOvershoot Whether to allow overshooting for better squares
+   * @returns {width, height} dimensions
+   */
+  private calculateOptimalDimensions(target: number, allowOvershoot: boolean = false): {width: number, height: number} {
+    if (target <= 0) return {width: 1, height: 1};
+    if (target > 100) return {width: 10, height: 10}; // Max 10x10 grid
+    
+    let bestWidth = 1;
+    let bestHeight = target;
+    let bestDifference = Math.abs(bestWidth - bestHeight);
+    
+    // Find all factor pairs and prefer the most square-like
+    for (let w = 1; w <= 10; w++) {
+      if (target % w === 0) {
+        const h = target / w;
+        if (h <= 10) {
+          const difference = Math.abs(w - h);
+          if (difference < bestDifference) {
+            bestWidth = w;
+            bestHeight = h;
+            bestDifference = difference;
+          }
+        }
+      }
+    }
+    
+    // If no perfect factors and overshooting allowed, find next square
+    if (allowOvershoot && bestDifference > 2) {
+      const sqrt = Math.ceil(Math.sqrt(target));
+      if (sqrt <= 10) {
+        return {width: sqrt, height: sqrt};
+      }
+    }
+    
+    return {width: bestWidth, height: bestHeight};
+  }
+
+  /**
+   * Calculate display dimensions for min/max visualization (cached)
+   */
+  private getDisplayDimensions(): {maxWidth: number, maxHeight: number, minWidth: number, minHeight: number} {
+    if (!this._cachedDisplayDimensions) {
+      const maxDims = this.calculateOptimalDimensions(this.ingredient.scaledMax, true);
+      
+      // For minimum, try to use one dimension close to max dimensions for visual continuity
+      let minDims: {width: number, height: number};
+      
+      if (this.ingredient.scaledMin <= maxDims.width) {
+        // Min can fit in one row/column of max
+        minDims = {width: this.ingredient.scaledMin, height: 1};
+      } else if (this.ingredient.scaledMin <= maxDims.height) {
+        minDims = {width: 1, height: this.ingredient.scaledMin};
+      } else {
+        // Calculate optimal for min if it's too large for sliver approach
+        minDims = this.calculateOptimalDimensions(this.ingredient.scaledMin, false);
+      }
+      
+      this._cachedDisplayDimensions = {
+        maxWidth: maxDims.width,
+        maxHeight: maxDims.height,
+        minWidth: minDims.width,
+        minHeight: minDims.height
+      };
+    }
+    
+    return this._cachedDisplayDimensions;
+  }
+
+  /**
    * Render in light DOM so that global styles apply.
    */
   protected createRenderRoot() {
     return this; // renders into light DOM instead of shadow
   }
 
+  /**
+   * Initialize smart grid dimensions when ingredient data is set
+   */
+  protected willUpdate(changedProperties: Map<string, any>) {
+    if (changedProperties.has('ingredient') && this.ingredient.scaledMax > 0) {
+      // Clear cache when ingredient changes
+      this._cachedDisplayDimensions = null;
+      
+      const optimalDims = this.calculateOptimalDimensions(this.ingredient.scaledMax, true);
+      this.gridWidth = optimalDims.width;
+      this.gridHeight = optimalDims.height;
+      
+      // Update current amount to match the optimal grid
+      this.ingredient = {
+        ...this.ingredient,
+        currentAmount: Math.min(this.gridWidth * this.gridHeight, this.ingredient.scaledMax)
+      };
+    }
+  }
+
   private updateGrid() {
-    this.gridWidth = parseInt((this.querySelector(`#width-slider-${this.ingredient.id}`) as HTMLInputElement)?.value || '5');
-    this.gridHeight = parseInt((this.querySelector(`#height-slider-${this.ingredient.id}`) as HTMLInputElement)?.value || '4');
+    const widthSlider = this.querySelector(`#width-slider-${this.ingredient.id}`) as HTMLInputElement;
+    const heightSlider = this.querySelector(`#height-slider-${this.ingredient.id}`) as HTMLInputElement;
+    
+    if (!widthSlider || !heightSlider) {
+      console.warn('Sliders not found for ingredient:', this.ingredient.id);
+      return;
+    }
+    
+    const newWidth = parseInt(widthSlider.value);
+    const newHeight = parseInt(heightSlider.value);
+    
+    console.log(`🎛️ Grid updated: ${this.gridWidth}x${this.gridHeight} → ${newWidth}x${newHeight}`);
+    
+    this.gridWidth = newWidth;
+    this.gridHeight = newHeight;
     
     // Update amount
     const newAmount = this.gridWidth * this.gridHeight;
     const clampedAmount = Math.max(this.ingredient.scaledMin, Math.min(this.ingredient.scaledMax, newAmount));
+    
+    console.log(`📊 Amount: ${this.ingredient.currentAmount} → ${clampedAmount} (${this.gridWidth}x${this.gridHeight})`);
     
     // Update the ingredient data to trigger re-render
     this.ingredient = {
@@ -70,6 +178,12 @@ export class FlexibleIngredientGrid extends LitElement {
       bubbles: true
     }));
     
+    // Update slider value displays
+    const widthDisplay = this.querySelector(`#width-value-${this.ingredient.id}`);
+    const heightDisplay = this.querySelector(`#height-value-${this.ingredient.id}`);
+    if (widthDisplay) widthDisplay.textContent = this.gridWidth.toString();
+    if (heightDisplay) heightDisplay.textContent = this.gridHeight.toString();
+    
     // Trigger re-render
     this.requestUpdate();
   }
@@ -81,8 +195,10 @@ export class FlexibleIngredientGrid extends LitElement {
   private generateGridSquares() {
     if (!this.ingredient) return [];
     
+    console.log(`🎨 Generating grid squares for ${this.ingredient.id}: ${this.gridWidth}x${this.gridHeight}`);
+    
     const FIXED_GRID_SIZE = 10; // Always 10x10 grid = 100 cells
-    const { scaledMin, scaledMax } = this.ingredient;
+    const displayDims = this.getDisplayDimensions();
     const squares = [];
     
     for (let i = 0; i < 100; i++) {
@@ -91,16 +207,20 @@ export class FlexibleIngredientGrid extends LitElement {
       
       let cellClasses = ['grid-cell'];
       
-      // Base coloring based on min/max requirements
-      if (i < scaledMin) {
+      // Check if cell is within minimum sliver area
+      const isInMinArea = row < displayDims.minHeight && col < displayDims.minWidth;
+      // Check if cell is within maximum outline area
+      const isInMaxOutline = row < displayDims.maxHeight && col < displayDims.maxWidth;
+      
+      if (isInMinArea) {
         cellClasses.push('min-required');
-      } else if (i < scaledMax) {
+      } else if (isInMaxOutline) {
         cellClasses.push('max-allowed'); 
       } else {
         cellClasses.push('empty');
       }
       
-      // Selection overlay (purple rectangle from top-left)
+      // Selection overlay (user's current selection)
       if (row < this.gridHeight && col < this.gridWidth) {
         cellClasses.push('selected');
       }
@@ -206,15 +326,15 @@ export class FlexibleIngredientGrid extends LitElement {
           <div class="grid-legend">
             <div class="legend-item">
               <div class="legend-color min-required"></div>
-              <span>Minimum Required (${this.formatAmount(scaledMin)})</span>
+              <span>Minimum Required (${this.formatAmount(scaledMin)} - ${this.getDisplayDimensions().minWidth}×${this.getDisplayDimensions().minHeight})</span>
             </div>
             <div class="legend-item">
               <div class="legend-color max-allowed"></div>
-              <span>Maximum Allowed (${this.formatAmount(scaledMax)})</span>
+              <span>Maximum Allowed (${this.formatAmount(scaledMax)} - ${this.getDisplayDimensions().maxWidth}×${this.getDisplayDimensions().maxHeight})</span>
             </div>
             <div class="legend-item">
               <div class="legend-color selected"></div>
-              <span>Current Selection</span>
+              <span>Current Selection (${this.gridWidth}×${this.gridHeight})</span>
             </div>
           </div>
         </div>
